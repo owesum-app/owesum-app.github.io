@@ -66,6 +66,34 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .g-item{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:#fff;border-radius:10px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 .g-item:active{background:#f0f7ff}
 .ptitle{font-size:20px;font-weight:700;margin-bottom:14px}
+/* トースト通知 */
+#toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom));z-index:10005;display:flex;flex-direction:column;gap:8px;align-items:center;width:calc(100% - 32px);max-width:448px;pointer-events:none}
+.toast{background:#1f2937;color:#fff;padding:10px 18px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.25);opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;max-width:100%;text-align:center}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.toast-error{background:#dc2626}
+.toast.toast-info{background:#2563eb}
+/* 通貨選択 */
+.cur-btn{font-size:16px;width:100%;border:1px solid #ddd;border-radius:8px;padding:9px 11px;background:#fff;font-family:inherit;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:6px;color:#1a1a1a;cursor:pointer}
+.cur-btn:focus{outline:2px solid #2563eb;border-color:#2563eb}
+.cur-item{display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;border:none;background:none;font-family:inherit;font-size:15px;text-align:left;border-bottom:1px solid #f5f5f5;cursor:pointer}
+.cur-item:active{background:#f0f7ff}
+.cur-item .cur-code{font-weight:600;min-width:48px}
+.cur-item .cur-name{color:#666;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cur-item.sel{background:#eff6ff}
+.cur-item.sel .cur-code{color:#1d4ed8}
+.cur-sec{font-size:11px;color:#999;font-weight:600;padding:10px 16px 4px;background:#fafafa}
+/* 支払いカード */
+.exp-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.exp-date{font-size:12px;color:#666;flex-shrink:0}
+.exp-amt{font-size:20px;font-weight:700;white-space:nowrap;color:#1a1a1a}
+.exp-amt .exp-cur{font-size:14px;font-weight:600;margin-left:3px}
+.exp-title{font-size:17px;font-weight:700;margin:2px 0 8px;word-break:break-word;line-height:1.4;color:#1a1a1a}
+.exp-row{display:flex;gap:8px;margin-bottom:6px;align-items:flex-start}
+.exp-lbl{font-size:11px;color:#555;background:#f0f0f0;border-radius:4px;padding:2px 6px;white-space:nowrap;flex-shrink:0;margin-top:2px}
+.exp-val{font-size:14px;color:#1a1a1a;font-weight:600;word-break:break-word;line-height:1.5;min-width:0}
+.exp-ben-chip{display:inline-block;background:#eff6ff;color:#1e40af;border-radius:6px;padding:2px 8px;font-size:13px;font-weight:500;margin:0 4px 4px 0}
+.exp-all-badge{display:inline-block;background:#1d4ed8;color:#fff;border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600}
+.exp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0;gap:8px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -129,8 +157,15 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
         <div style="font-size:12px;color:#888;line-height:1.6;margin-bottom:10px">仲間をグループに招待したり、記録を送ったりできます。</div>
         <button type="button" class="btn" id="btn-invite" style="width:100%;padding:11px;margin-bottom:8px">👥 グループに招待する（リンク）</button>
         <button type="button" class="btn-sm" id="btn-share" style="width:100%;padding:11px;margin-bottom:8px">📲 記録をLINE・メールで送る</button>
-        <button type="button" class="btn-sm" id="btn-backup-txt" style="width:100%;padding:11px;margin-bottom:8px">📄 読みやすい形式で保存（テキスト）</button>
-        <button type="button" class="btn-sm" id="btn-backup-json" style="width:100%;padding:11px">💾 復元用データで保存（JSON）</button>
+        <button type="button" class="btn-sm" id="btn-backup-json" style="width:100%;padding:11px">💾 バックアップを保存</button>
+        <div style="font-size:11px;color:#999;margin-top:4px">機種変更やデータ復元に使用します</div>
+        <div style="border-top:1px solid #f0f0f0;margin:12px 0 10px"></div>
+        <label>このグループのリンク</label>
+        <div id="group-link-url" style="font-size:12px;color:#666;word-break:break-all;background:#f5f5f5;border-radius:8px;padding:8px 10px;margin-bottom:8px"></div>
+        <div style="display:flex;gap:8px">
+          <button type="button" class="btn-sm" id="btn-copy-link" style="flex:1;padding:11px">🔗 リンクをコピー</button>
+          <button type="button" class="btn-sm" id="btn-share-link" style="flex:1;padding:11px">📤 共有する</button>
+        </div>
       </div>
       <div class="sec" style="margin-top:20px;color:#dc2626">危険な操作</div>
       <button type="button" class="btn-sm btn-red" id="btn-del-group" style="width:100%;padding:11px">このグループを削除する</button>
@@ -145,8 +180,11 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
           <div class="col"><label>日付</label><input type="date" id="inp-edate"></div>
         </div>
         <div class="row">
-          <div class="col"><label>金額</label><input type="number" id="inp-eamt" placeholder="0"></div>
-          <div class="col"><label>通貨</label><select id="inp-ecur"></select></div>
+          <div class="col"><label>金額</label><input type="text" id="inp-eamt" placeholder="0" inputmode="decimal" enterkeyhint="done" autocomplete="off"></div>
+          <div class="col"><label>通貨</label>
+            <button type="button" class="cur-btn" id="inp-ecur-btn" aria-haspopup="dialog"><span id="inp-ecur-label">🇯🇵 JPY 円</span><i class="ti ti-chevron-down" style="color:#aaa;font-size:16px"></i></button>
+            <input type="hidden" id="inp-ecur" value="JPY">
+          </div>
         </div>
         <label>立替えた人</label>
         <select id="inp-epayer" style="margin-bottom:10px"></select>
@@ -204,13 +242,14 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       </div>
       <div class="col">
         <label>金額</label>
-        <input id="ed-amt" type="number" step="0.01">
+        <input id="ed-amt" type="text" inputmode="decimal" enterkeyhint="done" autocomplete="off">
       </div>
     </div>
     <div class="row">
       <div class="col">
         <label>通貨</label>
-        <select id="ed-cur"></select>
+        <button type="button" class="cur-btn" id="ed-cur-btn" aria-haspopup="dialog"><span id="ed-cur-label"></span><i class="ti ti-chevron-down" style="color:#aaa;font-size:16px"></i></button>
+        <input type="hidden" id="ed-cur">
       </div>
       <div class="col">
         <label>立替えた人</label>
@@ -225,6 +264,23 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     </div>
   </div>
 </div>
+<!-- トースト通知 -->
+<div id="toast-wrap" aria-live="polite"></div>
+
+<!-- 通貨選択モーダル -->
+<div id="cur-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10002;align-items:flex-end;justify-content:center" role="dialog" aria-modal="true" aria-label="通貨を選択">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;max-height:80vh;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 8px">
+      <div style="font-size:16px;font-weight:700">通貨を選択</div>
+      <button type="button" id="cur-close" class="btn-sm" style="padding:6px 10px" aria-label="閉じる">✕ 閉じる</button>
+    </div>
+    <div style="padding:0 16px 10px">
+      <input type="text" id="cur-search" placeholder="通貨コード・通貨名・国名で検索" autocomplete="off">
+    </div>
+    <div id="cur-list" style="overflow-y:auto;flex:1;padding-bottom:env(safe-area-inset-bottom)"></div>
+  </div>
+</div>
+
 <nav class="nav" id="main-nav" style="display:none">
   <button type="button" class="nb on" data-tab="members"><i class="ti ti-users"></i>メンバー</button>
   <button type="button" class="nb" data-tab="expenses"><i class="ti ti-receipt"></i>支払い</button>
@@ -299,30 +355,33 @@ function askInput(message,placeholder){
   });
 }
 
+// 通貨データはここで一元管理する（en=英語名、country=国・地域名。検索対象）
 const CURR=[
-  {code:'JPY',flag:'🇯🇵',name:'円'},
-  {code:'THB',flag:'🇹🇭',name:'バーツ'},
-  {code:'KRW',flag:'🇰🇷',name:'ウォン'},
-  {code:'USD',flag:'🇺🇸',name:'ドル'},
-  {code:'EUR',flag:'🇪🇺',name:'ユーロ'},
-  {code:'GBP',flag:'🇬🇧',name:'ポンド'},
-  {code:'CNY',flag:'🇨🇳',name:'人民元'},
-  {code:'HKD',flag:'🇭🇰',name:'香港ドル'},
-  {code:'TWD',flag:'🇹🇼',name:'台湾ドル'},
-  {code:'SGD',flag:'🇸🇬',name:'SGドル'},
-  {code:'AUD',flag:'🇦🇺',name:'豪ドル'},
-  {code:'CAD',flag:'🇨🇦',name:'CAドル'},
-  {code:'RSD',flag:'🇷🇸',name:'セルビア ディナール'},
-  {code:'HRK',flag:'🇭🇷',name:'クロアチア クーナ'},
-  {code:'BAM',flag:'🇧🇦',name:'ボスニア マルク'},
-  {code:'MKD',flag:'🇲🇰',name:'北マケドニア デナル'},
-  {code:'ALL',flag:'🇦🇱',name:'アルバニア レク'},
-  {code:'BGN',flag:'🇧🇬',name:'ブルガリア レフ'},
-  {code:'RON',flag:'🇷🇴',name:'ルーマニア レウ'},
-  {code:'HUF',flag:'🇭🇺',name:'ハンガリー フォリント'},
-  {code:'MDL',flag:'🇲🇩',name:'モルドバ レウ'},
-  {code:'UAH',flag:'🇺🇦',name:'ウクライナ フリブニャ'},
+  {code:'JPY',flag:'🇯🇵',name:'円',en:'Japanese Yen',country:'日本 Japan'},
+  {code:'THB',flag:'🇹🇭',name:'バーツ',en:'Thai Baht',country:'タイ Thailand'},
+  {code:'KRW',flag:'🇰🇷',name:'ウォン',en:'South Korean Won',country:'韓国 South Korea'},
+  {code:'USD',flag:'🇺🇸',name:'ドル',en:'US Dollar',country:'アメリカ United States'},
+  {code:'EUR',flag:'🇪🇺',name:'ユーロ',en:'Euro',country:'ヨーロッパ Europe Eurozone'},
+  {code:'GBP',flag:'🇬🇧',name:'ポンド',en:'British Pound',country:'イギリス United Kingdom'},
+  {code:'CNY',flag:'🇨🇳',name:'人民元',en:'Chinese Yuan',country:'中国 China'},
+  {code:'HKD',flag:'🇭🇰',name:'香港ドル',en:'Hong Kong Dollar',country:'香港 Hong Kong'},
+  {code:'TWD',flag:'🇹🇼',name:'台湾ドル',en:'New Taiwan Dollar',country:'台湾 Taiwan'},
+  {code:'SGD',flag:'🇸🇬',name:'SGドル',en:'Singapore Dollar',country:'シンガポール Singapore'},
+  {code:'AUD',flag:'🇦🇺',name:'豪ドル',en:'Australian Dollar',country:'オーストラリア Australia'},
+  {code:'CAD',flag:'🇨🇦',name:'CAドル',en:'Canadian Dollar',country:'カナダ Canada'},
+  {code:'RSD',flag:'🇷🇸',name:'セルビア ディナール',en:'Serbian Dinar',country:'セルビア Serbia'},
+  {code:'HRK',flag:'🇭🇷',name:'クロアチア クーナ',en:'Croatian Kuna',country:'クロアチア Croatia'},
+  {code:'BAM',flag:'🇧🇦',name:'ボスニア マルク',en:'Convertible Mark',country:'ボスニア・ヘルツェゴビナ Bosnia and Herzegovina'},
+  {code:'MKD',flag:'🇲🇰',name:'北マケドニア デナル',en:'Macedonian Denar',country:'北マケドニア North Macedonia'},
+  {code:'ALL',flag:'🇦🇱',name:'アルバニア レク',en:'Albanian Lek',country:'アルバニア Albania'},
+  {code:'BGN',flag:'🇧🇬',name:'ブルガリア レフ',en:'Bulgarian Lev',country:'ブルガリア Bulgaria'},
+  {code:'RON',flag:'🇷🇴',name:'ルーマニア レウ',en:'Romanian Leu',country:'ルーマニア Romania'},
+  {code:'HUF',flag:'🇭🇺',name:'ハンガリー フォリント',en:'Hungarian Forint',country:'ハンガリー Hungary'},
+  {code:'MDL',flag:'🇲🇩',name:'モルドバ レウ',en:'Moldovan Leu',country:'モルドバ Moldova'},
+  {code:'UAH',flag:'🇺🇦',name:'ウクライナ フリブニャ',en:'Ukrainian Hryvnia',country:'ウクライナ Ukraine'},
 ];
+// 「よく使われる通貨」の表示順
+const COMMON_CURR=['JPY','USD','EUR','GBP','CNY','HKD','KRW','TWD','SGD','THB','AUD','CAD'];
 const AVC=[
   {bg:'#dbeafe',c:'#1e40af'},{bg:'#d1fae5',c:'#065f46'},
   {bg:'#fef3c7',c:'#92400e'},{bg:'#fee2e2',c:'#991b1b'},
@@ -341,6 +400,155 @@ function ci(code){return CURR.find(c=>c.code===code)||{code,flag:'',name:code};}
 function rate(code){if(code==='JPY')return 1;const v=parseFloat(rates[code]);return isNaN(v)||v<=0?null:v;}
 function jpy(amt,code){const r=rate(code);return r?amt*r:null;}
 function rnd(v,u){return Math.round(v/u)*u;}
+
+// ===== トースト通知 =====
+// type: 'success'（既定）| 'error' | 'info'
+function toast(msg,type){
+  const wrap=document.getElementById('toast-wrap');
+  if(!wrap)return;
+  const el=document.createElement('div');
+  el.className='toast'+(type==='error'?' toast-error':type==='info'?' toast-info':'');
+  el.textContent=msg;
+  wrap.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{
+    el.classList.remove('show');
+    setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},300);
+  },2500);
+}
+
+// ===== 金額入力（全角→半角、カンマ除去） =====
+function normalizeAmountText(s){
+  return String(s==null?'':s)
+    .replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+    .replace(/．/g,'.')
+    .replace(/[，,]/g,'');
+}
+// 正の有限数だけを返す。それ以外はnull
+function parseAmount(raw){
+  const s=normalizeAmountText(raw).trim();
+  if(!s)return null;
+  const v=Number(s);
+  if(isNaN(v)||!isFinite(v)||v<=0)return null;
+  return v;
+}
+function attachAmountInput(inp){
+  if(!inp)return;
+  inp.addEventListener('input',()=>{
+    const before=inp.value;
+    const after=normalizeAmountText(before);
+    if(before===after)return;
+    const pos=inp.selectionStart;
+    inp.value=after;
+    if(pos!=null){
+      const np=Math.max(0,pos-(before.length-after.length));
+      try{inp.setSelectionRange(np,np);}catch(e){}
+    }
+  });
+}
+
+// ===== 通貨選択モーダル =====
+const RECENT_CURR_KEY='narika_recent_curr';
+function getRecentCurr(){
+  try{
+    const a=JSON.parse(localStorage.getItem(RECENT_CURR_KEY)||'[]');
+    return Array.isArray(a)?a.filter(c=>typeof c==='string'):[];
+  }catch(e){return [];}
+}
+function pushRecentCurr(code){
+  try{
+    let a=getRecentCurr().filter(c=>c!==code);
+    a.unshift(code);
+    localStorage.setItem(RECENT_CURR_KEY,JSON.stringify(a.slice(0,5)));
+  }catch(e){}
+}
+function curLabel(code){
+  const c=ci(code);
+  return (c.flag?c.flag+' ':'')+c.code+(c.name&&c.name!==c.code?' '+c.name:'');
+}
+// hidden input（値の保持）とボタン表示を同時に更新する
+function setCurrencyField(inputId,code){
+  const inp=document.getElementById(inputId);
+  const lbl=document.getElementById(inputId+'-label');
+  if(inp)inp.value=code;
+  if(lbl)lbl.textContent=curLabel(code);
+}
+let curPickerTarget=null;
+function currencyMatches(c,q){
+  const s=q.toLowerCase();
+  return c.code.toLowerCase().indexOf(s)>=0
+    ||(c.name||'').toLowerCase().indexOf(s)>=0
+    ||(c.en||'').toLowerCase().indexOf(s)>=0
+    ||(c.country||'').toLowerCase().indexOf(s)>=0;
+}
+function renderCurrencyList(q){
+  const list=document.getElementById('cur-list');
+  const target=curPickerTarget?document.getElementById(curPickerTarget):null;
+  const current=target?target.value:null;
+  const query=(q||'').trim();
+  const item=c=>`<button type="button" class="cur-item${c.code===current?' sel':''}" data-cur="${esc(c.code)}">
+      <span style="font-size:18px">${c.flag||'💱'}</span>
+      <span class="cur-code">${esc(c.code)}</span>
+      <span class="cur-name">${esc(c.name)}${c.en?' / '+esc(c.en):''}</span>
+      ${c.code===current?'<i class="ti ti-check" style="color:#1d4ed8;font-size:18px"></i>':''}
+    </button>`;
+  let html='';
+  if(!query){
+    const recent=getRecentCurr().map(code=>ci(code));
+    if(recent.length)html+='<div class="cur-sec">最近使った通貨</div>'+recent.map(item).join('');
+    const common=COMMON_CURR.map(code=>CURR.find(c=>c.code===code)).filter(Boolean);
+    html+='<div class="cur-sec">よく使われる通貨</div>'+common.map(item).join('');
+    html+='<div class="cur-sec">すべての通貨</div>'+CURR.map(item).join('');
+  }else{
+    const filtered=CURR.filter(c=>currencyMatches(c,query));
+    html=filtered.length?filtered.map(item).join(''):'<div style="padding:20px 16px;color:#999;font-size:13px">見つかりませんでした</div>';
+  }
+  list.innerHTML=html;
+  list.querySelectorAll('[data-cur]').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      if(curPickerTarget)setCurrencyField(curPickerTarget,btn.dataset.cur);
+      closeCurrencyModal();
+    });
+  });
+}
+function openCurrencyModal(inputId){
+  curPickerTarget=inputId;
+  document.getElementById('cur-search').value='';
+  renderCurrencyList('');
+  document.getElementById('cur-bg').style.display='flex';
+}
+function closeCurrencyModal(){
+  document.getElementById('cur-bg').style.display='none';
+  curPickerTarget=null;
+}
+document.getElementById('cur-search').addEventListener('input',e=>renderCurrencyList(e.target.value));
+document.getElementById('cur-close').addEventListener('click',closeCurrencyModal);
+document.getElementById('cur-bg').addEventListener('click',e=>{if(e.target.id==='cur-bg')closeCurrencyModal();});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&document.getElementById('cur-bg').style.display==='flex')closeCurrencyModal();
+});
+document.getElementById('inp-ecur-btn').addEventListener('click',()=>openCurrencyModal('inp-ecur'));
+document.getElementById('ed-cur-btn').addEventListener('click',()=>openCurrencyModal('ed-cur'));
+attachAmountInput(document.getElementById('inp-eamt'));
+attachAmountInput(document.getElementById('ed-amt'));
+
+// ===== URL管理（?g=グループID） =====
+// グループを開いている間はアドレスバーを ?g=ID に保ち、一覧では ?g= を外す
+const groupNames={};
+function groupUrl(id){return location.origin+location.pathname+'?g='+encodeURIComponent(id);}
+function setUrlForGroup(id,mode){
+  if(mode==='none')return;
+  const target=location.pathname+'?g='+encodeURIComponent(id);
+  const cur=location.pathname+location.search;
+  if(cur===target||mode==='replace')history.replaceState({g:String(id)},'',target);
+  else history.pushState({g:String(id)},'',target);
+}
+function setUrlForList(mode){
+  if(mode==='none')return;
+  const cur=location.pathname+location.search;
+  if(cur===location.pathname||mode==='replace')history.replaceState({g:null},'',location.pathname);
+  else history.pushState({g:null},'',location.pathname);
+}
 
 // ページ切替
 function showPage(id){
@@ -394,6 +602,7 @@ async function loadGroups(){
       wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#999;font-size:13px;line-height:1.6">まだグループがありません。<br>下から新しく作るか、招待リンクを開くと、ここに表示されます。</div>';
       return;
     }
+    data.forEach(g=>{groupNames[String(g.id)]=g.name||'名称未設定';});
     wrap.innerHTML='<div class="sec">参加中のグループ</div>'+data.map(g=>{
       const created=g.created_at?new Date(g.created_at).toLocaleDateString('ja-JP'):'';
       return `<div class="g-item" data-id="${esc(g.id)}" data-name="${esc(g.name||'名称未設定')}">
@@ -475,8 +684,10 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
   enterGroup(gid,gname);
 });
 
-function enterGroup(id,name){
+// urlMode: 'push'（既定）| 'replace' | 'none'（戻る/進むから呼ばれた場合）
+function enterGroup(id,name,urlMode){
   GID=id;
+  groupNames[String(id)]=name;
   // 参加中のグループとして記録（一覧に残す）
   try{
     const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
@@ -485,7 +696,10 @@ function enterGroup(id,name){
       localStorage.setItem('narika_gids',JSON.stringify(ids));
     }
   }catch(e){}
+  setUrlForGroup(id,urlMode||'push');
   document.getElementById('g-title').textContent=name;
+  const linkEl=document.getElementById('group-link-url');
+  if(linkEl)linkEl.textContent=groupUrl(id);
   showPage('p-main');
   document.getElementById('main-nav').style.display='flex';
   // メンバータブに戻す
@@ -497,14 +711,33 @@ function enterGroup(id,name){
   startSubs();
 }
 
-// トップ画面に戻る
-document.getElementById('btn-back').addEventListener('click',()=>{
+// トップ画面（グループ一覧）に戻る
+function showGroupList(urlMode){
   stopSubs();
   GID=null;
   document.getElementById('main-nav').style.display='none';
+  setUrlForList(urlMode||'push');
   showPage('p-group');
   window.scrollTo(0,0);
   loadGroups();
+}
+document.getElementById('btn-back').addEventListener('click',()=>showGroupList('push'));
+
+// ブラウザの戻る／進むと画面を同期する
+window.addEventListener('popstate',async()=>{
+  const gid=new URLSearchParams(location.search).get('g');
+  if(!gid){
+    if(GID!==null)showGroupList('none');
+    return;
+  }
+  if(String(gid)===String(GID))return;
+  const cached=groupNames[String(gid)];
+  if(cached){enterGroup(gid,cached,'none');return;}
+  try{
+    const {data,error}=await db.from('groups').select('id,name').eq('id',gid);
+    if(!error&&data&&data.length){enterGroup(data[0].id,data[0].name||'名称未設定','none');return;}
+  }catch(err){debugLog('popstate処理例外',{message:err.message});}
+  showGroupList('replace');
 });
 
 // グループ削除（名前入力の二段階確認）
@@ -523,12 +756,9 @@ document.getElementById('btn-del-group').addEventListener('click',async()=>{
   if(error){await ask('削除失敗: '+error.message);return;}
   const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]').filter(x=>x!==gid);
   localStorage.setItem('narika_gids',JSON.stringify(ids));
-  stopSubs();
-  GID=null;
-  document.getElementById('main-nav').style.display='none';
-  showPage('p-group');
-  window.scrollTo(0,0);
-  loadGroups();
+  delete groupNames[String(gid)];
+  toast('グループを削除しました','info');
+  showGroupList('push');
 });
 
 // ===== バックアップ =====
@@ -546,14 +776,18 @@ function calcBalances(){
   });
   return {bal,total,ready};
 }
-function downloadFile(filename,text){
-  const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+function downloadFile(filename,text,mime){
+  const blob=new Blob([text],{type:mime||'text/plain;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;a.download=filename;
   document.body.appendChild(a);a.click();
   document.body.removeChild(a);
   setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+// OSで使えない文字をファイル名から除去する
+function sanitizeFilename(s){
+  return String(s==null?'':s).replace(/[\\\/:*?"<>|\x00-\x1f]/g,'_').replace(/\s+/g,' ').trim()||'narika';
 }
 function buildSummaryText(){
   const gname=document.getElementById('g-title').textContent;
@@ -585,15 +819,10 @@ function buildSummaryText(){
   }
   return t;
 }
-document.getElementById('btn-backup-txt').addEventListener('click',async()=>{
-  if(!GID){await ask('グループが選択されていません');return;}
-  const gname=document.getElementById('g-title').textContent;
-  downloadFile(`${gname}_バックアップ_${today()}.txt`,buildSummaryText());
-});
 document.getElementById('btn-share').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
   const gname=document.getElementById('g-title').textContent;
-  const url=location.origin+location.pathname+'?g='+GID;
+  const url=groupUrl(GID);
   const text=buildSummaryText()+`\n━━━━━━━━━━━━━━━\n■ このグループを開く\n${url}\n`;
   // スマホ：共有メニュー（LINE等）／パソコン：コピー
   if(navigator.share){
@@ -608,7 +837,7 @@ document.getElementById('btn-share').addEventListener('click',async()=>{
 document.getElementById('btn-invite').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
   const gname=document.getElementById('g-title').textContent;
-  const url=location.origin+location.pathname+'?g='+GID;
+  const url=groupUrl(GID);
   const text=`「${gname}」の割り勘グループに招待します！\n下のリンクを開くと、あなたの一覧にこのグループが追加されます。`;
   if(navigator.share){
     try{await navigator.share({title:`${gname} に招待`,text:text,url:url});}catch(err){}
@@ -622,6 +851,7 @@ document.getElementById('btn-invite').addEventListener('click',async()=>{
 document.getElementById('btn-backup-json').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
   const gname=document.getElementById('g-title').textContent;
+  // 復元機能（app:'narika', version:1）と完全互換の形式を維持する
   const data={
     app:'narika',version:1,
     exported_at:new Date().toISOString(),
@@ -630,7 +860,73 @@ document.getElementById('btn-backup-json').addEventListener('click',async()=>{
     expenses:expenses.map(e=>({name:e.name,date:e.date,amount:e.amount,currency:e.currency,payer:e.payer,beneficiaries:e.beneficiaries})),
     rates:rates
   };
-  downloadFile(`${gname}_復元用_${today()}.json`,JSON.stringify(data,null,2));
+  const json=JSON.stringify(data,null,2);
+  const filename=`${sanitizeFilename(gname)}_バックアップ_${today()}.json`;
+  // スマホではWeb Share APIでファイル共有画面を開く（保存先を選べる）
+  try{
+    if(navigator.canShare&&navigator.share&&typeof File==='function'){
+      const file=new File([json],filename,{type:'application/json'});
+      if(navigator.canShare({files:[file]})){
+        try{
+          await navigator.share({files:[file],title:filename});
+          toast('バックアップファイルを作成しました');
+        }catch(err){
+          if(err&&err.name==='AbortError'){
+            console.log('[NARIKA] バックアップ共有をキャンセルしました');
+          }else{
+            console.error('[NARIKA] バックアップ共有失敗',err);
+            downloadFile(filename,json,'application/json');
+            toast('バックアップファイルを作成しました');
+          }
+        }
+        return;
+      }
+    }
+  }catch(err){console.error('[NARIKA] Web Share判定失敗',err);}
+  // 非対応環境は通常のダウンロードにフォールバック
+  try{
+    downloadFile(filename,json,'application/json');
+    toast('バックアップファイルを作成しました');
+  }catch(err){
+    console.error('[NARIKA] バックアップ保存失敗',err);
+    toast('バックアップを保存できませんでした','error');
+  }
+});
+
+// ===== グループリンクのコピー・共有 =====
+async function copyTextToClipboard(text){
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    try{await navigator.clipboard.writeText(text);return true;}
+    catch(err){console.error('[NARIKA] clipboardコピー失敗',err);}
+  }
+  try{
+    const ta=document.createElement('textarea');
+    ta.value=text;
+    ta.style.position='fixed';ta.style.opacity='0';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok=document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  }catch(err){console.error('[NARIKA] コピー失敗',err);return false;}
+}
+document.getElementById('btn-copy-link').addEventListener('click',async()=>{
+  if(!GID){await ask('グループが選択されていません');return;}
+  const ok=await copyTextToClipboard(groupUrl(GID));
+  if(ok)toast('リンクをコピーしました');
+  else toast('リンクをコピーできませんでした','error');
+});
+document.getElementById('btn-share-link').addEventListener('click',async()=>{
+  if(!GID){await ask('グループが選択されていません');return;}
+  const gname=document.getElementById('g-title').textContent;
+  const url=groupUrl(GID);
+  if(navigator.share){
+    try{await navigator.share({title:gname,url});}catch(err){/* キャンセル時は何もしない */}
+  }else{
+    const ok=await copyTextToClipboard(url);
+    if(ok)toast('リンクをコピーしました');
+    else toast('リンクをコピーできませんでした','error');
+  }
 });
 
 
@@ -707,10 +1003,10 @@ function renderMembers(){
 // ===== 支払い =====
 function buildSelects(){
   const ps=document.getElementById('inp-epayer');
-  const cs=document.getElementById('inp-ecur');
-  if(!ps||!cs)return;
+  if(!ps)return;
   ps.innerHTML=members.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
-  cs.innerHTML=CURR.map(c=>`<option value="${c.code}">${c.flag} ${c.code} — ${c.name}</option>`).join('');
+  const cur=document.getElementById('inp-ecur');
+  if(cur)setCurrencyField('inp-ecur',cur.value||getRecentCurr()[0]||'JPY');
   const di=document.getElementById('inp-edate');
   if(di&&!di.value)di.value=today();
 }
@@ -729,15 +1025,17 @@ function selectedBens(){
 
 document.getElementById('btn-add-expense').addEventListener('click',async()=>{
   const name=document.getElementById('inp-ename').value.trim();
-  const amt=parseFloat(document.getElementById('inp-eamt').value);
-  const cur=document.getElementById('inp-ecur').value;
+  const amt=parseAmount(document.getElementById('inp-eamt').value);
+  const cur=document.getElementById('inp-ecur').value||'JPY';
   const payer=document.getElementById('inp-epayer').value;
   const date=document.getElementById('inp-edate').value;
-  if(!name||isNaN(amt)||amt<=0){await ask('内容と金額を入力してください');return;}
+  if(!name||amt===null){await ask('内容と金額を入力してください');return;}
   const bens=selectedBens();
   if(!bens.length){await ask('受益者を1人以上選んでください');return;}
   const {error}=await db.from('expenses').insert({group_id:GID,name,amount:amt,currency:cur,payer,date,beneficiaries:bens.join(',')});
-  if(error){await ask('記録失敗: '+error.message);return;}
+  if(error){console.error('[NARIKA] 支払い登録失敗',error);toast('支払いを登録できませんでした','error');return;}
+  pushRecentCurr(cur);
+  toast('支払いを登録しました');
   document.getElementById('inp-ename').value='';
   document.getElementById('inp-eamt').value='';
   document.getElementById('inp-edate').value=today();
@@ -751,25 +1049,26 @@ function renderExpenses(){
   el.innerHTML=expenses.map(e=>{
     const c=ci(e.currency);
     const j=jpy(e.amount,e.currency);
-    const tag=j!==null?`<span class="tag tag-ok">≈${Math.round(j).toLocaleString()}円</span>`:`<span class="tag tag-w">為替待ち</span>`;
-    const blab=e.beneficiaries.split(',').length===members.length?'全員':e.beneficiaries.split(',').join('・');
+    const tag=j!==null?`<span class="tag tag-ok" style="font-size:12px">円換算 ≈${Math.round(j).toLocaleString()}円</span>`:`<span class="tag tag-w" style="font-size:12px">為替レート入力待ち</span>`;
+    const bens=e.beneficiaries.split(',').filter(Boolean);
+    const isAll=members.length>0&&bens.length===members.length;
+    const benHtml=isAll
+      ?'<span class="exp-all-badge">全員</span>'
+      :bens.map(b=>`<span class="exp-ben-chip">${esc(b)}</span>`).join('');
     return `<div class="card" style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start">
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:3px">
-            <span style="font-size:11px;color:#aaa">${fdate(e.date)}</span>
-            <span style="font-size:15px;font-weight:600">${e.name}</span>
-          </div>
-          <div style="font-size:12px;color:#888">${e.payer}払い / 受益者：${blab}</div>
-        </div>
-        <div style="text-align:right;margin-left:8px;flex-shrink:0">
-          <div style="font-size:15px;font-weight:600">${e.amount.toLocaleString()} ${c.flag}${e.currency}</div>
-          <div style="margin-top:2px">${tag}</div>
-        </div>
+      <div class="exp-top">
+        <span class="exp-date">${esc(fdate(e.date))}</span>
+        <span class="exp-amt">${e.amount.toLocaleString()}<span class="exp-cur">${c.flag}${esc(e.currency)}</span></span>
       </div>
-      <div style="text-align:right;margin-top:6px;display:flex;gap:6px;justify-content:flex-end">
-        <button type="button" class="btn-sm" data-edit="${e.id}" style="font-size:12px">編集</button>
-        <button type="button" class="btn-sm btn-red" data-eid="${e.id}" style="font-size:12px">削除</button>
+      <div class="exp-title">${esc(e.name)}</div>
+      <div class="exp-row"><span class="exp-lbl">支払った人</span><span class="exp-val">${esc(e.payer)}</span></div>
+      <div class="exp-row" style="margin-bottom:0"><span class="exp-lbl">負担する人</span><span class="exp-val" style="font-weight:500">${benHtml}</span></div>
+      <div class="exp-foot">
+        ${tag}
+        <span style="display:flex;gap:6px">
+          <button type="button" class="btn-sm" data-edit="${e.id}" style="font-size:12px">編集</button>
+          <button type="button" class="btn-sm btn-red" data-eid="${e.id}" style="font-size:12px">削除</button>
+        </span>
       </div>
     </div>`;
   }).join('');
@@ -777,7 +1076,8 @@ function renderExpenses(){
     btn.addEventListener('click',async()=>{
       if(!await ask('削除しますか？'))return;
       const {error}=await db.from('expenses').delete().eq('id',btn.dataset.eid);
-      if(error){await ask('削除失敗: '+error.message);return;}
+      if(error){console.error('[NARIKA] 支払い削除失敗',error);toast('支払いを削除できませんでした','error');return;}
+      toast('支払いを削除しました');
       loadExpenses();
     });
   });
@@ -794,11 +1094,9 @@ function openEditExpense(id){
   editingId=id;
   document.getElementById('ed-name').value=e.name;
   document.getElementById('ed-date').value=e.date;
-  document.getElementById('ed-amt').value=e.amount;
-  // 通貨・立替えた人のセレクトを作る
-  const cs=document.getElementById('ed-cur');
-  cs.innerHTML=CURR.map(c=>`<option value="${c.code}">${c.flag} ${c.code} — ${c.name}</option>`).join('');
-  cs.value=e.currency;
+  document.getElementById('ed-amt').value=String(e.amount);
+  // 通貨・立替えた人を設定する
+  setCurrencyField('ed-cur',e.currency);
   const ps=document.getElementById('ed-payer');
   ps.innerHTML=members.map(m=>`<option value="${m.name}">${m.name}</option>`).join('');
   ps.value=e.payer;
@@ -819,17 +1117,19 @@ document.getElementById('ed-cancel').addEventListener('click',()=>{
 document.getElementById('ed-save').addEventListener('click',async()=>{
   if(!editingId)return;
   const name=document.getElementById('ed-name').value.trim();
-  const amt=parseFloat(document.getElementById('ed-amt').value);
+  const amt=parseAmount(document.getElementById('ed-amt').value);
   const cur=document.getElementById('ed-cur').value;
   const payer=document.getElementById('ed-payer').value;
   const date=document.getElementById('ed-date').value;
-  if(!name||isNaN(amt)||amt<=0){await ask('内容と金額を入力してください');return;}
+  if(!name||amt===null){await ask('内容と金額を入力してください');return;}
   const bens=Array.from(document.querySelectorAll('#ed-chips .chip.on')).map(c=>c.dataset.edname);
   if(!bens.length){await ask('受益者を1人以上選んでください');return;}
   const {error}=await db.from('expenses').update({name,amount:amt,currency:cur,payer,date,beneficiaries:bens.join(',')}).eq('id',editingId);
-  if(error){await ask('保存失敗: '+error.message);return;}
+  if(error){console.error('[NARIKA] 支払い保存失敗',error);toast('支払いを保存できませんでした','error');return;}
+  pushRecentCurr(cur);
   document.getElementById('edit-bg').style.display='none';
   editingId=null;
+  toast('支払いを保存しました');
   loadExpenses();
 });
 
@@ -929,34 +1229,28 @@ function renderSettle(){
   }).join('');
 }
 
-// 起動：招待リンク（?g=）の処理をしてから一覧を表示
+// 起動：?g=付きURL（招待リンク・ブックマーク・再読み込み）ならそのグループを直接開く
 async function boot(){
   debugLog('boot開始');
   const params=new URLSearchParams(location.search);
   const gid=params.get('g');
   if(gid){
     try{
-      debugLog('招待リンク確認',{gid});
+      debugLog('グループURL確認',{gid});
       const {data,error}=await db.from('groups').select('id,name').eq('id',gid);
-      if(error)debugLog('招待リンク取得エラー',{message:error.message});
+      if(error)debugLog('グループ取得エラー',{message:error.message});
       if(!error&&data&&data.length){
-        // 招待されたグループを自分の参加リストに追加
+        const g=data[0];
         const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
-        const isNew=!ids.map(String).includes(String(data[0].id));
-        if(isNew){
-          ids.push(data[0].id);
-          localStorage.setItem('narika_gids',JSON.stringify(ids));
-        }
-        history.replaceState(null,'',location.pathname);
-        // トップ画面（参加中のグループ一覧）を表示してからお知らせ
-        await loadGroups();
-        await ask('「'+data[0].name+'」に参加しました！\n下の「参加中のグループ」から開けます。');
+        const isNew=!ids.map(String).includes(String(g.id));
+        // URLは?g=のまま保持してグループを直接開く（参加リストへの追加はenterGroup内で行う）
+        enterGroup(g.id,g.name||'名称未設定','replace');
+        if(isNew)toast('「'+(g.name||'名称未設定')+'」に参加しました','info');
         return;
-      }else{
-        await ask('招待リンクのグループが見つかりませんでした。\n削除されたか、リンクが正しくない可能性があります。');
       }
-    }catch(err){debugLog('招待リンク処理例外',{message:err.message,stack:err.stack});}
-    history.replaceState(null,'',location.pathname);
+      await ask('リンクのグループが見つかりませんでした。\n削除されたか、リンクが正しくない可能性があります。');
+    }catch(err){debugLog('グループURL処理例外',{message:err.message,stack:err.stack});}
+    history.replaceState({g:null},'',location.pathname);
   }
   await loadGroups();
 }
