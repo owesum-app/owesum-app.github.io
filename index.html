@@ -94,32 +94,33 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .exp-ben-chip{display:inline-block;background:#eff6ff;color:#1e40af;border-radius:6px;padding:2px 8px;font-size:13px;font-weight:500;margin:0 4px 4px 0}
 .exp-all-badge{display:inline-block;background:#1d4ed8;color:#fff;border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600}
 .exp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0;gap:8px;flex-wrap:wrap}
-/* ヒーロー（トップ）: スマホは明るい背景に縦積み、768px以上は全画面背景 */
-.hero{background:#fffdf9}
-.hero-inner{display:flex;flex-direction:column;align-items:flex-start;padding:calc(24px + env(safe-area-inset-top)) 22px 22px}
-.hero-brand{display:flex;align-items:baseline;gap:10px;margin:0}
-.hero-logo{font-size:32px;font-weight:800;color:#2563eb;letter-spacing:.5px}
-.hero-kana{font-size:13px;color:#555;font-weight:600}
-.hero-title{font-size:24px;line-height:1.5;color:#1e3a5f;font-weight:800;margin:12px 0 8px}
-.hero-desc{font-size:14px;line-height:1.8;color:#333f50;margin:0 0 16px;font-weight:500}
+/* ヒーロー（トップ）: 写真を主役に、左余白へ文字を重ねる。768px未満は静的単位のみで高さを固定 */
+.hero{position:relative;height:min(160vw,760px);background:linear-gradient(160deg,#fdf6ec,#eef4fb);overflow:hidden}
+@supports (height:100svh){.hero{height:min(100svh,760px)}}
+.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:0% 50%}
+.hero-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;margin:calc(14px + env(safe-area-inset-top)) 0 0 14px;padding:15px 14px 16px;max-width:min(63vw,300px);background:rgba(255,251,244,.62);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:18px;border:1px solid rgba(255,255,255,.55);box-shadow:0 4px 24px rgba(31,41,55,.08)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.hero-inner{background:rgba(255,251,244,.88)}}
+.hero-brand{display:flex;align-items:baseline;gap:8px;margin:0}
+.hero-logo{font-size:clamp(24px,7vw,30px);font-weight:800;color:#2563eb;letter-spacing:.5px}
+.hero-kana{font-size:12px;color:#444;font-weight:600}
+.hero-title{font-size:clamp(18px,5.4vw,22px);line-height:1.5;color:#1e3a5f;font-weight:800;margin:10px 0 8px}
+.hero-desc{font-size:13px;line-height:1.75;color:#2e3a4c;margin:0 0 14px;font-weight:500}
 .hero-desc-long{display:none}
-.hero-btn{background:#cf6a1f;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;padding:14px 28px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(207,106,31,.35);width:100%}
+.hero-btn{background:#cf6a1f;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;padding:13px 18px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(207,106,31,.35);width:100%}
 .hero-btn:active{opacity:.85}
 .hero-btn:focus-visible{outline:3px solid #1e3a5f;outline-offset:2px}
-.hero-note{font-size:12px;color:#555;margin:10px 0 0;font-weight:500}
-.hero-media{position:relative}
-.hero-img{display:block;width:100%;aspect-ratio:3/4;max-height:56vh;object-fit:cover;object-position:center 45%}
-.hero-more{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;padding:13px 12px;background:#fffdf9;border:none;font-family:inherit;font-size:13px;font-weight:600;color:#1e3a5f;cursor:pointer}
+.hero-note{font-size:11px;color:#444;margin:8px 0 0;font-weight:600}
+.hero-media{position:static}
+.hero-more{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:2;display:inline-flex;align-items:center;gap:4px;padding:9px 16px;background:rgba(255,251,244,.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.6);border-radius:99px;font-family:inherit;font-size:12px;font-weight:600;color:#1e3a5f;cursor:pointer;box-shadow:0 2px 10px rgba(31,41,55,.14)}
 @media (min-width:768px){
   .br-sp{display:none}
   .hero-desc-long{display:inline}
   .hero-desc-short{display:none}
   .hero-more{display:none}
-  .hero{position:relative;min-height:100vh;min-height:100svh;background:linear-gradient(160deg,#fdf6ec,#eef4fb);overflow:hidden}
+  .hero{height:auto;min-height:100vh;min-height:100svh}
   .hero::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,rgba(255,250,242,.72) 0%,rgba(255,250,242,.3) 28%,rgba(255,250,242,0) 46%)}
-  .hero-media{position:static}
-  .hero-img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;max-height:none;object-position:center}
-  .hero-inner{position:relative;z-index:2;justify-content:center;min-height:100vh;min-height:100svh;padding:0 24px 12vh 8%;max-width:none;width:100%}
+  .hero-img{object-position:center}
+  .hero-inner{justify-content:center;min-height:100vh;min-height:100svh;margin:0;padding:0 24px 12vh 8%;max-width:none;width:100%;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;border-radius:0;box-shadow:none}
   .hero-inner>*{max-width:540px}
   .hero-logo{font-size:46px}
   .hero-kana{font-size:15px}
