@@ -119,6 +119,8 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 @media (max-width:767px){
   #p-group .wrap{min-height:calc(100vh - 28px)}
   @supports (height:100svh){#p-group .wrap{min-height:calc(100svh - 28px)}}
+  /* ヒーローの3入口と重複する下部の作成フォーム・復元カードはスマホでは非表示（HTMLは残す） */
+  .sp-hide{display:none}
 }
 @media (min-width:768px){
   .br-sp{display:none}
@@ -195,12 +197,12 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   <div class="wrap">
     <div id="debug-box" style="display:none !important"></div>
     <div id="my-groups"></div>
-    <div class="card">
+    <div class="card sp-hide">
       <label>新しいグループを作る</label>
       <input type="text" id="gname" placeholder="例：歓迎会" style="margin-bottom:10px">
       <button type="button" class="btn" id="btn-create-group">グループを作成</button>
     </div>
-    <div class="card">
+    <div class="card sp-hide">
       <label>バックアップから復元</label>
       <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:10px">以前保存したバックアップファイルを選ぶと、新しいグループとして復元します。</div>
       <button type="button" class="btn-sm" id="btn-restore" style="width:100%;padding:11px">バックアップファイルから復元する</button>
@@ -717,7 +719,7 @@ async function loadGroups(){
   if(!wrap){debugLog('my-groups要素が見つかりません');return;}
   const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
   if(!ids.length){
-    wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#999;font-size:13px;line-height:1.6">まだグループがありません。<br>下から新しく作るか、招待リンクを開くと、ここに表示されます。</div>';
+    wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#999;font-size:13px;line-height:1.6">まだグループがありません。<br>「新しいグループを作る」から作るか、招待リンクを開くと、ここに表示されます。</div>';
     return;
   }
   wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#999;font-size:13px">読み込み中...</div>';
@@ -730,7 +732,7 @@ async function loadGroups(){
       return;
     }
     if(!data||!data.length){
-      wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#999;font-size:13px;line-height:1.6">まだグループがありません。<br>下から新しく作るか、招待リンクを開くと、ここに表示されます。</div>';
+      wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#999;font-size:13px;line-height:1.6">まだグループがありません。<br>「新しいグループを作る」から作るか、招待リンクを開くと、ここに表示されます。</div>';
       return;
     }
     data.forEach(g=>{groupNames[String(g.id)]=g.name||'名称未設定';});
