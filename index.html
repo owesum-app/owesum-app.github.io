@@ -94,6 +94,42 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .exp-ben-chip{display:inline-block;background:#eff6ff;color:#1e40af;border-radius:6px;padding:2px 8px;font-size:13px;font-weight:500;margin:0 4px 4px 0}
 .exp-all-badge{display:inline-block;background:#1d4ed8;color:#fff;border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600}
 .exp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0;gap:8px;flex-wrap:wrap}
+/* ヒーロー画面（トップ） */
+.hero{position:relative;min-height:100vh;min-height:100svh;background:linear-gradient(160deg,#fdf6ec,#eef4fb);overflow:hidden}
+.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:15% 50%}
+.hero::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,250,242,.92) 0%,rgba(255,250,242,.6) 36%,rgba(255,250,242,0) 62%)}
+.hero-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;min-height:100vh;min-height:100svh;padding:7vh 22px 24px;max-width:560px}
+.hero-brand{display:flex;align-items:baseline;gap:10px;margin:0}
+.hero-logo{font-size:34px;font-weight:800;color:#2563eb;letter-spacing:.5px}
+.hero-kana{font-size:13px;color:#555;font-weight:600}
+.hero-title{font-size:clamp(19px,5.6vw,25px);line-height:1.5;color:#1e3a5f;font-weight:800;margin:14px 0 10px}
+.hero-desc{font-size:14px;line-height:1.8;color:#3a4657;margin:0 0 18px;font-weight:500}
+.hero-desc-long{display:none}
+@media (min-width:768px){.hero-desc-long{display:inline}.hero-desc-short{display:none}}
+.hero-btn{background:#cf6a1f;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;padding:14px 28px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(207,106,31,.35)}
+.hero-btn:active{opacity:.85}
+.hero-btn:focus-visible{outline:3px solid #1e3a5f;outline-offset:2px}
+.hero-note{font-size:12px;color:#5a5a5a;margin:10px 0 0;font-weight:500}
+@media (min-width:768px){
+  .hero-img{object-position:center}
+  .hero::before{background:linear-gradient(90deg,rgba(255,250,242,.72) 0%,rgba(255,250,242,.3) 28%,rgba(255,250,242,0) 46%)}
+  .hero-inner{justify-content:center;padding:0 24px 12vh 8%;max-width:none;width:100%}
+  .hero-inner>*{max-width:540px}
+  .hero-logo{font-size:46px}
+  .hero-kana{font-size:15px}
+  .hero-title{font-size:34px;margin:18px 0 12px}
+  .hero-desc{font-size:16px;margin-bottom:24px}
+  .hero-btn{font-size:17px;padding:15px 34px}
+}
+@media (max-width:767px) and (max-height:700px){
+  .hero-inner{padding-top:5vh}
+  .hero-title{font-size:20px}
+  .hero-desc{font-size:13px;margin-bottom:14px}
+  .hero::before{background:linear-gradient(180deg,rgba(255,250,242,.92) 0%,rgba(255,250,242,.65) 40%,rgba(255,250,242,0) 68%)}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+}
 </style>
 </head>
 <body>
@@ -130,13 +166,20 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 
 <!-- グループ画面 -->
 <div id="p-group" class="page show">
+  <section class="hero">
+    <picture aria-hidden="true">
+      <source media="(min-width: 768px)" srcset="owesum-hero-desktop.webp">
+      <img src="owesum-hero-mobile.webp" alt="" class="hero-img" onerror="this.style.display='none'">
+    </picture>
+    <div class="hero-inner">
+      <p class="hero-brand"><span class="hero-logo">OweSum</span><span class="hero-kana">オーサム</span></p>
+      <h1 class="hero-title">飲み会も、旅行も。<br>みんなの立替を、かんたん精算。</h1>
+      <p class="hero-desc"><span class="hero-desc-long">誰がいくら立て替えたかを記録するだけで、<br>面倒な割り勘をスムーズに。</span><span class="hero-desc-short">立替を記録するだけで、<br>面倒な割り勘をスムーズに。</span></p>
+      <button type="button" class="hero-btn" id="btn-hero-create">新しいグループを作る</button>
+      <p class="hero-note">ログイン不要・すぐに使えます</p>
+    </div>
+  </section>
   <div class="wrap">
-    <div style="margin:-16px -16px 16px">
-      <img src="narika.png" alt="ナリカ！ 海外旅行の割り勘はこれ1つで完璧！" id="logo-img" style="width:100%;display:block" onerror="this.parentNode.style.display='none';document.getElementById('logo-fallback').style.display='block'">
-    </div>
-    <div class="logo" id="logo-fallback" style="display:none">
-      <h1>ナリカ！</h1><p>みんなで使える割り勘アプリ</p>
-    </div>
     <div id="debug-box" style="display:none !important"></div>
     <div id="my-groups"></div>
     <div class="card">
@@ -682,6 +725,15 @@ async function loadGroups(){
   }
 }
 window.loadGroups=loadGroups;
+
+// ヒーローの「新しいグループを作る」→ 既存の作成フォームへスクロールしてフォーカス
+document.getElementById('btn-hero-create').addEventListener('click',()=>{
+  const inp=document.getElementById('gname');
+  if(!inp)return;
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  inp.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});
+  setTimeout(()=>{try{inp.focus({preventScroll:true});}catch(e){inp.focus();}},reduce?0:350);
+});
 
 document.getElementById('btn-create-group').addEventListener('click',async()=>{
   const name=document.getElementById('gname').value.trim();
