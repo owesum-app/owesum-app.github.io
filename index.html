@@ -94,38 +94,38 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .exp-ben-chip{display:inline-block;background:#eff6ff;color:#1e40af;border-radius:6px;padding:2px 8px;font-size:13px;font-weight:500;margin:0 4px 4px 0}
 .exp-all-badge{display:inline-block;background:#1d4ed8;color:#fff;border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600}
 .exp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0;gap:8px;flex-wrap:wrap}
-/* ヒーロー画面（トップ） */
-.hero{position:relative;min-height:100vh;min-height:100svh;background:linear-gradient(160deg,#fdf6ec,#eef4fb);overflow:hidden}
-.hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:15% 50%}
-.hero::before{content:'';position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,rgba(255,250,242,.92) 0%,rgba(255,250,242,.6) 36%,rgba(255,250,242,0) 62%)}
-.hero-inner{position:relative;z-index:1;display:flex;flex-direction:column;align-items:flex-start;min-height:100vh;min-height:100svh;padding:7vh 22px 24px;max-width:560px}
+/* ヒーロー（トップ）: スマホは明るい背景に縦積み、768px以上は全画面背景 */
+.hero{background:#fffdf9}
+.hero-inner{display:flex;flex-direction:column;align-items:flex-start;padding:calc(24px + env(safe-area-inset-top)) 22px 22px}
 .hero-brand{display:flex;align-items:baseline;gap:10px;margin:0}
-.hero-logo{font-size:34px;font-weight:800;color:#2563eb;letter-spacing:.5px}
+.hero-logo{font-size:32px;font-weight:800;color:#2563eb;letter-spacing:.5px}
 .hero-kana{font-size:13px;color:#555;font-weight:600}
-.hero-title{font-size:clamp(19px,5.6vw,25px);line-height:1.5;color:#1e3a5f;font-weight:800;margin:14px 0 10px}
-.hero-desc{font-size:14px;line-height:1.8;color:#3a4657;margin:0 0 18px;font-weight:500}
+.hero-title{font-size:24px;line-height:1.5;color:#1e3a5f;font-weight:800;margin:12px 0 8px}
+.hero-desc{font-size:14px;line-height:1.8;color:#333f50;margin:0 0 16px;font-weight:500}
 .hero-desc-long{display:none}
-@media (min-width:768px){.hero-desc-long{display:inline}.hero-desc-short{display:none}}
-.hero-btn{background:#cf6a1f;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;padding:14px 28px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(207,106,31,.35)}
+.hero-btn{background:#cf6a1f;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;padding:14px 28px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(207,106,31,.35);width:100%}
 .hero-btn:active{opacity:.85}
 .hero-btn:focus-visible{outline:3px solid #1e3a5f;outline-offset:2px}
-.hero-note{font-size:12px;color:#5a5a5a;margin:10px 0 0;font-weight:500}
+.hero-note{font-size:12px;color:#555;margin:10px 0 0;font-weight:500}
+.hero-media{position:relative}
+.hero-img{display:block;width:100%;aspect-ratio:3/4;max-height:56vh;object-fit:cover;object-position:center 45%}
+.hero-more{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;padding:13px 12px;background:#fffdf9;border:none;font-family:inherit;font-size:13px;font-weight:600;color:#1e3a5f;cursor:pointer}
 @media (min-width:768px){
-  .hero-img{object-position:center}
-  .hero::before{background:linear-gradient(90deg,rgba(255,250,242,.72) 0%,rgba(255,250,242,.3) 28%,rgba(255,250,242,0) 46%)}
-  .hero-inner{justify-content:center;padding:0 24px 12vh 8%;max-width:none;width:100%}
+  .br-sp{display:none}
+  .hero-desc-long{display:inline}
+  .hero-desc-short{display:none}
+  .hero-more{display:none}
+  .hero{position:relative;min-height:100vh;min-height:100svh;background:linear-gradient(160deg,#fdf6ec,#eef4fb);overflow:hidden}
+  .hero::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,rgba(255,250,242,.72) 0%,rgba(255,250,242,.3) 28%,rgba(255,250,242,0) 46%)}
+  .hero-media{position:static}
+  .hero-img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;max-height:none;object-position:center}
+  .hero-inner{position:relative;z-index:2;justify-content:center;min-height:100vh;min-height:100svh;padding:0 24px 12vh 8%;max-width:none;width:100%}
   .hero-inner>*{max-width:540px}
   .hero-logo{font-size:46px}
   .hero-kana{font-size:15px}
   .hero-title{font-size:34px;margin:18px 0 12px}
   .hero-desc{font-size:16px;margin-bottom:24px}
-  .hero-btn{font-size:17px;padding:15px 34px}
-}
-@media (max-width:767px) and (max-height:700px){
-  .hero-inner{padding-top:5vh}
-  .hero-title{font-size:20px}
-  .hero-desc{font-size:13px;margin-bottom:14px}
-  .hero::before{background:linear-gradient(180deg,rgba(255,250,242,.92) 0%,rgba(255,250,242,.65) 40%,rgba(255,250,242,0) 68%)}
+  .hero-btn{font-size:17px;padding:15px 34px;width:auto}
 }
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -167,17 +167,20 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 <!-- グループ画面 -->
 <div id="p-group" class="page show">
   <section class="hero">
-    <picture aria-hidden="true">
-      <source media="(min-width: 768px)" srcset="owesum-hero-desktop.webp">
-      <img src="owesum-hero-mobile.webp" alt="" class="hero-img" onerror="this.style.display='none'">
-    </picture>
     <div class="hero-inner">
       <p class="hero-brand"><span class="hero-logo">OweSum</span><span class="hero-kana">オーサム</span></p>
-      <h1 class="hero-title">飲み会も、旅行も。<br>みんなの立替を、かんたん精算。</h1>
+      <h1 class="hero-title">飲み会も、旅行も。<br>みんなの立替を、<br class="br-sp">かんたん精算。</h1>
       <p class="hero-desc"><span class="hero-desc-long">誰がいくら立て替えたかを記録するだけで、<br>面倒な割り勘をスムーズに。</span><span class="hero-desc-short">立替を記録するだけで、<br>面倒な割り勘をスムーズに。</span></p>
       <button type="button" class="hero-btn" id="btn-hero-create">新しいグループを作る</button>
       <p class="hero-note">ログイン不要・すぐに使えます</p>
     </div>
+    <div class="hero-media">
+      <picture aria-hidden="true">
+        <source media="(min-width: 768px)" srcset="owesum-hero-desktop.webp">
+        <img src="owesum-hero-mobile.webp" alt="" class="hero-img" onerror="this.style.display='none'">
+      </picture>
+    </div>
+    <button type="button" class="hero-more" id="btn-hero-more">参加中のグループを見る<i class="ti ti-chevron-down" style="font-size:16px"></i></button>
   </section>
   <div class="wrap">
     <div id="debug-box" style="display:none !important"></div>
@@ -323,6 +326,19 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     </div>
   </div>
 </div>
+<!-- グループ作成モーダル（ヒーローのボタンから開く） -->
+<div id="create-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:9999;align-items:center;justify-content:center;padding:24px" role="dialog" aria-modal="true" aria-label="新しいグループを作る">
+  <div style="background:#fff;border-radius:16px;padding:20px;max-width:340px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.2)">
+    <div style="font-size:16px;font-weight:700;margin-bottom:12px">新しいグループを作る</div>
+    <label>グループ名</label>
+    <input type="text" id="gname-modal" placeholder="例：歓迎会" autocomplete="off" style="margin-bottom:14px">
+    <div style="display:flex;gap:8px">
+      <button type="button" id="create-cancel" class="btn-sm" style="flex:1;padding:11px">キャンセル</button>
+      <button type="button" id="create-ok" class="btn" style="flex:1;padding:11px">グループを作成</button>
+    </div>
+  </div>
+</div>
+
 <!-- トースト通知 -->
 <div id="toast-wrap" aria-live="polite"></div>
 
@@ -586,7 +602,9 @@ document.getElementById('cur-search').addEventListener('input',e=>renderCurrency
 document.getElementById('cur-close').addEventListener('click',closeCurrencyModal);
 document.getElementById('cur-bg').addEventListener('click',e=>{if(e.target.id==='cur-bg')closeCurrencyModal();});
 document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'&&document.getElementById('cur-bg').style.display==='flex')closeCurrencyModal();
+  if(e.key!=='Escape')return;
+  if(document.getElementById('cur-bg').style.display==='flex')closeCurrencyModal();
+  else if(document.getElementById('create-bg').style.display==='flex')closeCreateModal();
 });
 document.getElementById('inp-ecur-btn').addEventListener('click',()=>openCurrencyModal('inp-ecur'));
 document.getElementById('ed-cur-btn').addEventListener('click',()=>openCurrencyModal('ed-cur'));
@@ -726,25 +744,60 @@ async function loadGroups(){
 }
 window.loadGroups=loadGroups;
 
-// ヒーローの「新しいグループを作る」→ 既存の作成フォームへスクロールしてフォーカス
-document.getElementById('btn-hero-create').addEventListener('click',()=>{
-  const inp=document.getElementById('gname');
-  if(!inp)return;
-  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  inp.scrollIntoView({behavior:reduce?'auto':'smooth',block:'center'});
-  setTimeout(()=>{try{inp.focus({preventScroll:true});}catch(e){inp.focus();}},reduce?0:350);
+// ===== グループ作成（ヒーローのモーダルと下部フォームで共通利用） =====
+let creatingGroup=false; // 二重登録防止
+async function createGroupByName(name){
+  if(!name){await ask('グループ名を入力してください');return false;}
+  if(creatingGroup)return false;
+  creatingGroup=true;
+  try{
+    const {data,error}=await db.from('groups').insert({name}).select().single();
+    if(error){await ask('作成失敗: '+error.message);return false;}
+    const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
+    ids.push(data.id);
+    localStorage.setItem('narika_gids',JSON.stringify(ids));
+    markIntroSeen(data.id); // 自分で作ったグループに紹介画面は不要
+    enterGroup(data.id,data.name);
+    return true;
+  }finally{creatingGroup=false;}
+}
+document.getElementById('btn-create-group').addEventListener('click',async()=>{
+  await createGroupByName(document.getElementById('gname').value.trim());
 });
 
-document.getElementById('btn-create-group').addEventListener('click',async()=>{
-  const name=document.getElementById('gname').value.trim();
-  if(!name){await ask('グループ名を入力してください');return;}
-  const {data,error}=await db.from('groups').insert({name}).select().single();
-  if(error){await ask('作成失敗: '+error.message);return;}
-  const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
-  ids.push(data.id);
-  localStorage.setItem('narika_gids',JSON.stringify(ids));
-  markIntroSeen(data.id); // 自分で作ったグループに紹介画面は不要
-  enterGroup(data.id,data.name);
+// ヒーローの「新しいグループを作る」→ 作成モーダルを開く（スクロールはしない）
+function openCreateModal(){
+  const bg=document.getElementById('create-bg');
+  document.getElementById('gname-modal').value='';
+  bg.style.display='flex';
+  document.body.style.overflow='hidden'; // 背面スクロールを抑止
+  setTimeout(()=>document.getElementById('gname-modal').focus(),100);
+}
+function closeCreateModal(){
+  document.getElementById('create-bg').style.display='none';
+  document.body.style.overflow='';
+}
+document.getElementById('btn-hero-create').addEventListener('click',openCreateModal);
+document.getElementById('create-cancel').addEventListener('click',closeCreateModal);
+document.getElementById('create-bg').addEventListener('click',e=>{if(e.target.id==='create-bg')closeCreateModal();});
+document.getElementById('create-ok').addEventListener('click',async()=>{
+  const btn=document.getElementById('create-ok');
+  btn.disabled=true;
+  try{
+    const ok=await createGroupByName(document.getElementById('gname-modal').value.trim());
+    if(ok)closeCreateModal();
+  }finally{btn.disabled=false;}
+});
+document.getElementById('gname-modal').addEventListener('keydown',e=>{
+  if(e.key==='Enter')document.getElementById('create-ok').click();
+});
+
+// 「参加中のグループを見る」→ 一覧セクションへ移動
+document.getElementById('btn-hero-more').addEventListener('click',()=>{
+  const el=document.getElementById('my-groups');
+  if(!el)return;
+  const reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  el.scrollIntoView({behavior:reduce?'auto':'smooth',block:'start'});
 });
 
 // ===== JSONから復元 =====
