@@ -128,8 +128,8 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     </div>
     <div class="card">
       <label>バックアップから復元</label>
-      <div style="font-size:12px;color:#888;line-height:1.6;margin-bottom:10px">保存しておいたJSONファイルを選ぶと、新しいグループとして復元します。</div>
-      <button type="button" class="btn-sm" id="btn-restore" style="width:100%;padding:11px">📂 JSONファイルから復元する</button>
+      <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:10px">以前保存したバックアップファイルを選ぶと、新しいグループとして復元します。</div>
+      <button type="button" class="btn-sm" id="btn-restore" style="width:100%;padding:11px">バックアップファイルから復元する</button>
       <input type="file" id="restore-file" accept=".json,application/json" style="display:none">
     </div>
   </div>
@@ -152,22 +152,20 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       </div>
       <div class="sec">メンバー一覧</div>
       <div class="card" id="member-list">読み込み中...</div>
-      <div class="sec" style="margin-top:20px">共有・バックアップ</div>
+      <div class="sec" style="margin-top:20px">このグループのリンク</div>
       <div class="card">
-        <div style="font-size:12px;color:#888;line-height:1.6;margin-bottom:10px">仲間をグループに招待したり、記録を送ったりできます。</div>
-        <button type="button" class="btn" id="btn-invite" style="width:100%;padding:11px;margin-bottom:8px">👥 グループに招待する（リンク）</button>
-        <button type="button" class="btn-sm" id="btn-share" style="width:100%;padding:11px;margin-bottom:8px">📲 記録をLINE・メールで送る</button>
-        <button type="button" class="btn-sm" id="btn-backup-json" style="width:100%;padding:11px">💾 バックアップを保存</button>
-        <div style="font-size:11px;color:#999;margin-top:4px">機種変更やデータ復元に使用します</div>
-        <div style="border-top:1px solid #f0f0f0;margin:12px 0 10px"></div>
-        <label>このグループのリンク</label>
-        <div id="group-link-url" style="font-size:12px;color:#666;word-break:break-all;background:#f5f5f5;border-radius:8px;padding:8px 10px;margin-bottom:8px"></div>
-        <div style="display:flex;gap:8px">
-          <button type="button" class="btn-sm" id="btn-copy-link" style="flex:1;padding:11px">🔗 リンクをコピー</button>
-          <button type="button" class="btn-sm" id="btn-share-link" style="flex:1;padding:11px">📤 共有する</button>
-        </div>
+        <div id="group-link-url" style="font-size:13px;color:#1a1a1a;word-break:break-all;overflow-wrap:anywhere;background:#f5f5f5;border-radius:8px;padding:10px 12px;margin-bottom:10px;line-height:1.5;user-select:text;-webkit-user-select:text;-webkit-touch-callout:default"></div>
+        <button type="button" class="btn" id="btn-copy-link" style="width:100%;padding:11px;margin-bottom:8px">リンクをコピーする</button>
+        <button type="button" class="btn-sm" id="btn-share-link" style="width:100%;padding:11px">リンクをLINE・メールで送る</button>
       </div>
-      <div class="sec" style="margin-top:20px;color:#dc2626">危険な操作</div>
+      <div class="sec" style="margin-top:20px">記録・バックアップ</div>
+      <div class="card">
+        <button type="button" class="btn-sm" id="btn-share" style="width:100%;padding:11px;margin-bottom:12px">今までの記録をLINE・メールで送る</button>
+        <button type="button" class="btn-sm" id="btn-backup-json" style="width:100%;padding:11px">バックアップファイルを保存する</button>
+        <div style="font-size:12px;color:#555;line-height:1.7;margin-top:6px">機種変更やデータ復元に使用します</div>
+        <div id="backup-guide" style="font-size:12px;color:#555;line-height:1.7;margin-top:2px"></div>
+      </div>
+      <div class="sec" style="margin-top:32px;color:#dc2626">危険な操作</div>
       <button type="button" class="btn-sm btn-red" id="btn-del-group" style="width:100%;padding:11px">このグループを削除する</button>
     </div>
 
@@ -324,7 +322,8 @@ function esc(v){
 }
 
 // ===== カスタムダイアログ（confirm/promptの代替）=====
-function ask(message){
+// okLabel: OKボタンの文言を変えたい場合に指定（例：「保存を続ける」）
+function ask(message,okLabel){
   return new Promise(resolve=>{
     const bg=document.getElementById('modal-bg');
     document.getElementById('modal-msg').textContent=message;
@@ -332,7 +331,8 @@ function ask(message){
     bg.style.display='flex';
     const ok=document.getElementById('modal-ok');
     const cancel=document.getElementById('modal-cancel');
-    function close(val){bg.style.display='none';ok.onclick=null;cancel.onclick=null;resolve(val);}
+    ok.textContent=okLabel||'OK';
+    function close(val){bg.style.display='none';ok.onclick=null;cancel.onclick=null;ok.textContent='OK';resolve(val);}
     ok.onclick=()=>close(true);
     cancel.onclick=()=>close(false);
   });
@@ -646,7 +646,11 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
   try{
     const text=await file.text();
     data=JSON.parse(text);
-  }catch(err){await ask('ファイルを読み込めませんでした。\n正しいJSONファイルか確認してください。');return;}
+  }catch(err){
+    console.error('[NARIKA] バックアップJSONの読み込み失敗',err);
+    await ask('ファイルを読み込めませんでした。\n正しいバックアップファイルか確認してください。');
+    return;
+  }
   if(data.app!=='narika'||!data.group_name){await ask('このアプリのバックアップファイルではないようです。');return;}
   const gname=data.group_name;
   if(!await ask(`「${gname}」を復元します。\n（新しいグループとして作成されます）\n\nよろしいですか？`))return;
@@ -834,22 +838,40 @@ document.getElementById('btn-share').addEventListener('click',async()=>{
     await ask('お使いの環境では共有に対応していません。テキスト保存をご利用ください。');
   }
 });
-document.getElementById('btn-invite').addEventListener('click',async()=>{
-  if(!GID){await ask('グループが選択されていません');return;}
-  const gname=document.getElementById('g-title').textContent;
-  const url=groupUrl(GID);
-  const text=`「${gname}」の割り勘グループに招待します！\n下のリンクを開くと、あなたの一覧にこのグループが追加されます。`;
-  if(navigator.share){
-    try{await navigator.share({title:`${gname} に招待`,text:text,url:url});}catch(err){}
-  }else if(navigator.clipboard){
-    try{await navigator.clipboard.writeText(text+'\n\n'+url);await ask('招待リンクをコピーしました。\nLINEやメールに貼り付けて送れます。');}
-    catch(err){await ask('コピーできませんでした。');}
-  }else{
-    await ask('お使いの環境では共有に対応していません。');
-  }
-});
+// ===== 端末別のバックアップ保存案内 =====
+// 端末判定は案内文の出し分けにのみ使用する（保存方式自体はnavigator.canShareの機能判定で決める）
+function detectDevice(){
+  const ua=navigator.userAgent||'';
+  if(/iPhone|iPad|iPod/.test(ua))return 'ios';
+  // iPadOSはMac相当のUAを名乗るため、タッチ点数も併用して判定する
+  if(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1)return 'ios';
+  if(/Android/.test(ua))return 'android';
+  if(/Mobile|Tablet/.test(ua))return 'mobile';
+  return 'pc';
+}
+const BACKUP_GUIDE={
+  ios:'iPhone・iPadでは、保存画面で「ファイルに保存」を選び、「このiPhone内」または「iCloud Drive」に保存してください。',
+  android:'Androidでは、保存画面で「ファイル」「ダウンロード」または「Google Drive」を選んで保存してください。',
+  mobile:'保存画面が開いたら、端末内やクラウドドライブなど分かりやすい保存先を選んでください。',
+  pc:'通常はブラウザのダウンロードフォルダに保存されます。'
+};
+(function(){
+  const el=document.getElementById('backup-guide');
+  if(el)el.textContent=BACKUP_GUIDE[detectDevice()]||BACKUP_GUIDE.mobile;
+})();
+
 document.getElementById('btn-backup-json').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
+  // スマホでは保存先の案内を出し、キャンセルなら保存処理を開始しない（PCは不要）
+  const dev=detectDevice();
+  if(dev!=='pc'){
+    const msg=dev==='ios'
+      ?'共有画面が開いたら「ファイルに保存」を選んでください。\n保存先は「このiPhone内」または「iCloud Drive」がおすすめです。'
+      :dev==='android'
+        ?'保存画面が開いたら「ファイル」「ダウンロード」または「Google Drive」を選んでください。'
+        :'この後の画面で、端末内やクラウドドライブなど分かりやすい保存先を選んでください。';
+    if(!await ask(msg,'保存を続ける'))return;
+  }
   const gname=document.getElementById('g-title').textContent;
   // 復元機能（app:'narika', version:1）と完全互換の形式を維持する
   const data={
@@ -868,15 +890,16 @@ document.getElementById('btn-backup-json').addEventListener('click',async()=>{
       const file=new File([json],filename,{type:'application/json'});
       if(navigator.canShare({files:[file]})){
         try{
+          // 共有画面を閉じただけの可能性もあるため「保存完了」とは断定しない
           await navigator.share({files:[file],title:filename});
-          toast('バックアップファイルを作成しました');
+          toast('バックアップファイルを準備しました');
         }catch(err){
           if(err&&err.name==='AbortError'){
             console.log('[NARIKA] バックアップ共有をキャンセルしました');
           }else{
             console.error('[NARIKA] バックアップ共有失敗',err);
             downloadFile(filename,json,'application/json');
-            toast('バックアップファイルを作成しました');
+            toast('バックアップファイルをダウンロードしました');
           }
         }
         return;
@@ -886,7 +909,7 @@ document.getElementById('btn-backup-json').addEventListener('click',async()=>{
   // 非対応環境は通常のダウンロードにフォールバック
   try{
     downloadFile(filename,json,'application/json');
-    toast('バックアップファイルを作成しました');
+    toast('バックアップファイルをダウンロードしました');
   }catch(err){
     console.error('[NARIKA] バックアップ保存失敗',err);
     toast('バックアップを保存できませんでした','error');
@@ -920,11 +943,12 @@ document.getElementById('btn-share-link').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
   const gname=document.getElementById('g-title').textContent;
   const url=groupUrl(GID);
+  const text=`「${gname}」の割り勘記録です。このリンクから一緒に見て編集できます。`;
   if(navigator.share){
-    try{await navigator.share({title:gname,url});}catch(err){/* キャンセル時は何もしない */}
+    try{await navigator.share({title:`${gname}の割り勘記録`,text,url});}catch(err){/* キャンセル時は何もしない */}
   }else{
-    const ok=await copyTextToClipboard(url);
-    if(ok)toast('リンクをコピーしました');
+    const ok=await copyTextToClipboard(text+'\n'+url);
+    if(ok)toast('共有用リンクをコピーしました');
     else toast('リンクをコピーできませんでした','error');
   }
 });
