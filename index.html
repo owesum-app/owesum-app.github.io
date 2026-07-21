@@ -94,29 +94,36 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .exp-ben-chip{display:inline-block;background:#eff6ff;color:#1e40af;border-radius:6px;padding:2px 8px;font-size:13px;font-weight:500;margin:0 4px 4px 0}
 .exp-all-badge{display:inline-block;background:#1d4ed8;color:#fff;border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600}
 .exp-foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #f0f0f0;gap:8px;flex-wrap:wrap}
-/* ヒーロー（トップ）: 写真を主役に、左余白へ文字を重ねる。768px未満は静的単位のみで高さを固定 */
+/* ヒーロー（トップ）: 写真を主役に、左の明るい余白へ細いメニューパネルを重ねる。768px未満は静的単位のみで高さを固定 */
 .hero{position:relative;height:min(160vw,760px);background:linear-gradient(160deg,#fdf6ec,#eef4fb);overflow:hidden}
-@supports (height:100svh){.hero{height:min(100svh,760px)}}
+@supports (height:100svh){.hero{height:min(100svh,940px)}}
 .hero-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:0% 50%}
-.hero-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;margin:calc(14px + env(safe-area-inset-top)) 0 0 14px;padding:15px 14px 16px;max-width:min(63vw,300px);background:rgba(255,251,244,.62);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:18px;border:1px solid rgba(255,255,255,.55);box-shadow:0 4px 24px rgba(31,41,55,.08)}
+/* パネル右端は写真内スマホ本体の左端（375px幅で画面上約207px）より左に収める */
+.hero-inner{position:relative;z-index:2;display:flex;flex-direction:column;align-items:flex-start;margin:calc(16px + env(safe-area-inset-top)) 0 0 16px;padding:14px 13px 15px;width:min(49vw,216px);background:rgba(255,251,244,.66);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-radius:20px;border:1px solid rgba(255,255,255,.55);box-shadow:0 3px 16px rgba(31,41,55,.07)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.hero-inner{background:rgba(255,251,244,.88)}}
-.hero-brand{display:flex;align-items:baseline;gap:8px;margin:0}
-.hero-logo{font-size:clamp(24px,7vw,30px);font-weight:800;color:#2563eb;letter-spacing:.5px}
-.hero-kana{font-size:12px;color:#444;font-weight:600}
-.hero-title{font-size:clamp(18px,5.4vw,22px);line-height:1.5;color:#1e3a5f;font-weight:800;margin:10px 0 8px}
-.hero-desc{font-size:13px;line-height:1.75;color:#2e3a4c;margin:0 0 14px;font-weight:500}
-.hero-desc-long{display:none}
-.hero-btn{background:#cf6a1f;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;padding:13px 18px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(207,106,31,.35);width:100%}
+.hero-brand{display:flex;align-items:baseline;gap:7px;margin:0}
+.hero-logo{font-size:clamp(22px,6vw,26px);font-weight:800;color:#2563eb;letter-spacing:.5px}
+.hero-kana{font-size:11px;color:#444;font-weight:600}
+.hero-title{font-size:clamp(15px,4.5vw,19px);line-height:1.55;color:#1e3a5f;font-weight:800;margin:10px 0 12px}
+.hero-desc{display:none;font-size:13px;line-height:1.75;color:#2e3a4c;margin:0 0 14px;font-weight:500}
+.hero-btn{background:#cf6a1f;color:#fff;border:none;border-radius:12px;font-size:13.5px;font-weight:700;padding:12px 6px;cursor:pointer;font-family:inherit;box-shadow:0 4px 14px rgba(207,106,31,.35);width:100%;white-space:nowrap}
 .hero-btn:active{opacity:.85}
 .hero-btn:focus-visible{outline:3px solid #1e3a5f;outline-offset:2px}
-.hero-note{font-size:11px;color:#444;margin:8px 0 0;font-weight:600}
+.hero-btn-sub{margin-top:8px;width:100%;background:rgba(255,255,255,.85);color:#1e3a5f;border:1px solid rgba(30,58,95,.4);border-radius:12px;font-size:12.5px;font-weight:700;line-height:1.5;padding:10px 8px;cursor:pointer;font-family:inherit}
+.hero-btn-sub:active{opacity:.8}
+.hero-btn-sub:focus-visible{outline:3px solid #1e3a5f;outline-offset:2px}
+.hero-note{display:none;font-size:11px;color:#444;margin:8px 0 0;font-weight:600}
+.hero-groups-link{align-self:center;margin-top:11px;display:inline-flex;align-items:center;gap:2px;background:none;border:none;padding:7px 2px;font-family:inherit;font-size:12px;font-weight:700;color:#1e3a5f;cursor:pointer;text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .hero-media{position:static}
-.hero-more{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom));z-index:2;display:inline-flex;align-items:center;gap:4px;padding:9px 16px;background:rgba(255,251,244,.8);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.6);border-radius:99px;font-family:inherit;font-size:12px;font-weight:600;color:#1e3a5f;cursor:pointer;box-shadow:0 2px 10px rgba(31,41,55,.14)}
+/* 「参加中のグループを見る」で一覧見出しを画面上部へ送れるよう、ヒーロー下に1画面分の高さを確保（グループ0件時対策） */
+@media (max-width:767px){
+  #p-group .wrap{min-height:calc(100vh - 28px)}
+  @supports (height:100svh){#p-group .wrap{min-height:calc(100svh - 28px)}}
+}
 @media (min-width:768px){
   .br-sp{display:none}
-  .hero-desc-long{display:inline}
-  .hero-desc-short{display:none}
-  .hero-more{display:none}
+  .hero-btn-sub{display:none}
+  .hero-groups-link{display:none}
   .hero{height:auto;min-height:100vh;min-height:100svh}
   .hero::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,rgba(255,250,242,.72) 0%,rgba(255,250,242,.3) 28%,rgba(255,250,242,0) 46%)}
   .hero-img{object-position:center}
@@ -125,7 +132,8 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   .hero-logo{font-size:46px}
   .hero-kana{font-size:15px}
   .hero-title{font-size:34px;margin:18px 0 12px}
-  .hero-desc{font-size:16px;margin-bottom:24px}
+  .hero-desc{display:block;font-size:16px;margin-bottom:24px}
+  .hero-note{display:block}
   .hero-btn{font-size:17px;padding:15px 34px;width:auto}
 }
 @media (prefers-reduced-motion:reduce){
@@ -171,9 +179,11 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     <div class="hero-inner">
       <p class="hero-brand"><span class="hero-logo">OweSum</span><span class="hero-kana">オーサム</span></p>
       <h1 class="hero-title">飲み会も、旅行も。<br>みんなの立替を、<br class="br-sp">かんたん精算。</h1>
-      <p class="hero-desc"><span class="hero-desc-long">誰がいくら立て替えたかを記録するだけで、<br>面倒な割り勘をスムーズに。</span><span class="hero-desc-short">立替を記録するだけで、<br>面倒な割り勘をスムーズに。</span></p>
+      <p class="hero-desc">誰がいくら立て替えたかを記録するだけで、<br>面倒な割り勘をスムーズに。</p>
       <button type="button" class="hero-btn" id="btn-hero-create">新しいグループを作る</button>
+      <button type="button" class="hero-btn-sub" id="btn-hero-restore">バックアップファイルから復元する</button>
       <p class="hero-note">ログイン不要・すぐに使えます</p>
+      <button type="button" class="hero-groups-link" id="btn-hero-more">参加中のグループを見る<i class="ti ti-chevron-down" style="font-size:15px"></i></button>
     </div>
     <div class="hero-media">
       <picture aria-hidden="true">
@@ -181,7 +191,6 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
         <img src="owesum-hero-mobile.webp" alt="" class="hero-img" onerror="this.style.display='none'">
       </picture>
     </div>
-    <button type="button" class="hero-more" id="btn-hero-more">参加中のグループを見る<i class="ti ti-chevron-down" style="font-size:16px"></i></button>
   </section>
   <div class="wrap">
     <div id="debug-box" style="display:none !important"></div>
@@ -802,10 +811,13 @@ document.getElementById('btn-hero-more').addEventListener('click',()=>{
 });
 
 // ===== JSONから復元 =====
-document.getElementById('btn-restore').addEventListener('click',()=>{
+// ファイル選択はヒーローの副ボタンと下部カードで同じinputを共通利用（スクロールなしでその場で開く）
+function openRestorePicker(){
   document.getElementById('restore-file').value='';
   document.getElementById('restore-file').click();
-});
+}
+document.getElementById('btn-restore').addEventListener('click',openRestorePicker);
+document.getElementById('btn-hero-restore').addEventListener('click',openRestorePicker);
 document.getElementById('restore-file').addEventListener('change',async(ev)=>{
   const file=ev.target.files[0];
   if(!file)return;
