@@ -110,6 +110,24 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   </div>
 </div>
 
+<!-- 初回紹介画面（招待URLを初めて開いた端末にだけ表示） -->
+<div id="p-intro" class="page">
+  <div class="wrap">
+    <div style="margin:-16px -16px 16px">
+      <img src="narika.png" alt="OweSum（オーサム）" style="width:100%;display:block" onerror="this.parentNode.style.display='none'">
+    </div>
+    <div style="text-align:center;margin-bottom:20px">
+      <div style="font-size:30px;font-weight:800;color:#2563eb">OweSum</div>
+      <div style="font-size:14px;color:#666;margin-top:2px">オーサム</div>
+      <div style="font-size:14px;color:#555;margin-top:10px">みんなの立替を、かんたん割り勘</div>
+    </div>
+    <div class="card" style="text-align:center;padding:22px 16px">
+      <div style="font-size:15px;line-height:1.7;margin-bottom:16px;word-break:break-word">「<span id="intro-gname" style="font-weight:700"></span>」に招待されました</div>
+      <button type="button" class="btn" id="btn-intro-open">グループを開く</button>
+    </div>
+  </div>
+</div>
+
 <!-- グループ画面 -->
 <div id="p-group" class="page show">
   <div class="wrap">
@@ -123,7 +141,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     <div id="my-groups"></div>
     <div class="card">
       <label>新しいグループを作る</label>
-      <input type="text" id="gname" placeholder="例：バルカン半島2026" style="margin-bottom:10px">
+      <input type="text" id="gname" placeholder="例：歓迎会" style="margin-bottom:10px">
       <button type="button" class="btn" id="btn-create-group">グループを作成</button>
     </div>
     <div class="card">
@@ -174,7 +192,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <div class="ptitle">支払い記録</div>
       <div class="card">
         <div class="row">
-          <div class="col" style="flex:2"><label>内容</label><input type="text" id="inp-ename" placeholder="例：ミシュラン2つ星"></div>
+          <div class="col" style="flex:2"><label>内容</label><input type="text" id="inp-ename" placeholder="例：1次会：居酒屋"></div>
           <div class="col"><label>日付</label><input type="date" id="inp-edate"></div>
         </div>
         <div class="row">
@@ -550,6 +568,48 @@ function setUrlForList(mode){
   else history.pushState({g:null},'',location.pathname);
 }
 
+// ===== 初回紹介画面（招待URL） =====
+// 「グループを開く」を押したグループIDだけをlocalStorageに記録する。
+// このキーを削除すれば紹介画面を再表示できる（開発・検証用）。
+const INTRO_SEEN_KEY='narika_intro_seen_gids';
+function getIntroSeen(){
+  try{
+    const a=JSON.parse(localStorage.getItem(INTRO_SEEN_KEY)||'[]');
+    return Array.isArray(a)?a.map(String):[];
+  }catch(e){return [];}
+}
+function introSeen(gid){return getIntroSeen().includes(String(gid));}
+function markIntroSeen(gid){
+  try{
+    const a=getIntroSeen();
+    if(!a.includes(String(gid))){
+      a.push(String(gid));
+      localStorage.setItem(INTRO_SEEN_KEY,JSON.stringify(a));
+    }
+  }catch(e){}
+}
+let introGid=null,introGname=null;
+function showIntro(id,name,urlMode){
+  introGid=id;introGname=name;
+  groupNames[String(id)]=name;
+  document.getElementById('intro-gname').textContent=name;
+  document.getElementById('main-nav').style.display='none';
+  setUrlForGroup(id,urlMode||'replace');
+  showPage('p-intro');
+  window.scrollTo(0,0);
+}
+document.getElementById('btn-intro-open').addEventListener('click',()=>{
+  if(!introGid)return;
+  markIntroSeen(introGid);
+  enterGroup(introGid,introGname,'replace');
+  introGid=null;introGname=null;
+});
+// 紹介画面が未確認ならまず紹介画面、確認済みなら直接グループを開く
+function openGroupFromUrl(id,name,urlMode){
+  if(!introSeen(id))showIntro(id,name,urlMode);
+  else enterGroup(id,name,urlMode);
+}
+
 // ページ切替
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('show'));
@@ -631,6 +691,7 @@ document.getElementById('btn-create-group').addEventListener('click',async()=>{
   const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
   ids.push(data.id);
   localStorage.setItem('narika_gids',JSON.stringify(ids));
+  markIntroSeen(data.id); // 自分で作ったグループに紹介画面は不要
   enterGroup(data.id,data.name);
 });
 
@@ -684,6 +745,7 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
   const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
   ids.push(gid);
   localStorage.setItem('narika_gids',JSON.stringify(ids));
+  markIntroSeen(gid); // 自分で復元したグループに紹介画面は不要
   await ask(`「${gname}」を復元しました！`);
   enterGroup(gid,gname);
 });
@@ -730,16 +792,17 @@ document.getElementById('btn-back').addEventListener('click',()=>showGroupList('
 // ブラウザの戻る／進むと画面を同期する
 window.addEventListener('popstate',async()=>{
   const gid=new URLSearchParams(location.search).get('g');
+  const onIntro=document.getElementById('p-intro').classList.contains('show');
   if(!gid){
-    if(GID!==null)showGroupList('none');
+    if(GID!==null||onIntro)showGroupList('none');
     return;
   }
   if(String(gid)===String(GID))return;
   const cached=groupNames[String(gid)];
-  if(cached){enterGroup(gid,cached,'none');return;}
+  if(cached){openGroupFromUrl(gid,cached,'none');return;}
   try{
     const {data,error}=await db.from('groups').select('id,name').eq('id',gid);
-    if(!error&&data&&data.length){enterGroup(data[0].id,data[0].name||'名称未設定','none');return;}
+    if(!error&&data&&data.length){openGroupFromUrl(data[0].id,data[0].name||'名称未設定','none');return;}
   }catch(err){debugLog('popstate処理例外',{message:err.message});}
   showGroupList('replace');
 });
@@ -1265,11 +1328,16 @@ async function boot(){
       if(error)debugLog('グループ取得エラー',{message:error.message});
       if(!error&&data&&data.length){
         const g=data[0];
+        const gname=g.name||'名称未設定';
+        // 紹介画面が未確認の端末は、まずOweSumの紹介画面を表示する（URLは?g=のまま）
+        if(!introSeen(g.id)){
+          showIntro(g.id,gname,'replace');
+          return;
+        }
         const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
         const isNew=!ids.map(String).includes(String(g.id));
-        // URLは?g=のまま保持してグループを直接開く（参加リストへの追加はenterGroup内で行う）
-        enterGroup(g.id,g.name||'名称未設定','replace');
-        if(isNew)toast('「'+(g.name||'名称未設定')+'」に参加しました','info');
+        enterGroup(g.id,gname,'replace');
+        if(isNew)toast('「'+gname+'」に参加しました','info');
         return;
       }
       await ask('リンクのグループが見つかりませんでした。\n削除されたか、リンクが正しくない可能性があります。');
