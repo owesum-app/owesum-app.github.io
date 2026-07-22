@@ -136,6 +136,15 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   @supports (height:100svh){#p-group .wrap{min-height:calc(100svh - 28px)}}
   /* ヒーローの3入口と重複する下部の作成フォーム・復元カードはスマホでは非表示（HTMLは残す） */
   .sp-hide{display:none}
+  /* ヒーロー：画像（ロゴ・人物・見出しを内包）をそのまま上に表示し、操作ボタンはその下に通常フローで配置。ガラスパネル重畳は廃止 */
+  .hero{position:static;height:auto;background:none;overflow:visible;display:flex;flex-direction:column}
+  .hero-media{order:1;display:block}
+  .hero-img{position:static;width:100%;height:auto;object-fit:contain;object-position:center;display:block}
+  .hero-inner{order:2;position:static;z-index:auto;margin:16px 16px 0;padding:0;width:auto;max-width:none;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;border-radius:0;box-shadow:none}
+  .hero-brand,.hero-title{display:none}
+  /* 画像読み込み失敗時は画像内蔵の見出しが失われるため、HTML側の見出しをフォールバック表示 */
+  .hero.img-failed .hero-brand{display:flex}
+  .hero.img-failed .hero-title{display:block}
 }
 @media (min-width:768px){
   .br-sp{display:none}
@@ -203,9 +212,9 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <button type="button" class="hero-groups-link" id="btn-hero-more">参加中のグループを見る<i class="ti ti-chevron-down" style="font-size:15px"></i></button>
     </div>
     <div class="hero-media">
-      <picture aria-hidden="true">
+      <picture>
         <source media="(min-width: 768px)" srcset="owesum-hero-desktop.webp?v=2">
-        <img src="owesum-hero-mobile.webp?v=2" alt="" class="hero-img" onerror="this.style.display='none'">
+        <img src="owesum-hero-mobile.webp?v=3" alt="OweSum（オーサム）｜みんなの立替を、かんたん精算。" class="hero-img" onerror="this.style.display='none';this.closest('.hero').classList.add('img-failed')">
       </picture>
     </div>
   </section>
