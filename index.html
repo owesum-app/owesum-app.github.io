@@ -47,6 +47,21 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .tag{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500}
 .tag-w{background:#fef3c7;color:#92400e}
 .tag-ok{background:#d1fae5;color:#065f46}
+.tag-chk{background:#fee2e2;color:#b91c1c}
+.tag-split{background:#ede9fe;color:#5b21b6}
+/* 分け方（均等/割合/金額指定） */
+.split-seg{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.sgb{flex:1 1 30%;min-width:80px;padding:9px 4px;font-size:13px;border:1.5px solid #ddd;border-radius:8px;background:#f5f5f5;color:#666;font-family:inherit;font-weight:500;cursor:pointer}
+.sgb.on{background:#2563eb;color:#fff;border-color:#2563eb}
+.split-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px;margin-bottom:10px}
+.split-row{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.split-name{flex:1;font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.split-row input{width:112px;text-align:right;padding:7px 9px;flex:none}
+.split-unit{font-size:12px;color:#888;flex:none;min-width:14px}
+.split-even{width:100%;margin:2px 0 8px}
+.split-sum{font-size:12px;color:#16a34a;font-weight:600}
+.split-sum.ng{color:#dc2626}
+.split-note{font-size:11px;color:#888;margin-top:4px;line-height:1.5}
 .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
 .stat{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 .stat-l{font-size:11px;color:#888;margin-bottom:3px}
@@ -264,6 +279,13 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
         <select id="inp-epayer" style="margin-bottom:10px"></select>
         <label>受益者 <span style="font-size:10px;color:#aaa">（タップで外せます）</span></label>
         <div id="ben-chips" style="margin-bottom:6px"></div>
+        <label style="margin-top:6px">分け方</label>
+        <div class="split-seg" id="split-seg">
+          <button type="button" class="sgb on" data-split="equal">均等</button>
+          <button type="button" class="sgb" data-split="percentage">割合</button>
+          <button type="button" class="sgb" data-split="amount">金額指定</button>
+        </div>
+        <div id="split-detail"></div>
         <button type="button" class="btn" id="btn-add-expense">記録する</button>
       </div>
       <div class="sec">記録一覧</div>
@@ -294,6 +316,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
         </div>
       </div>
       <div id="s-warn" class="warn" style="display:none">為替未入力の通貨があります。</div>
+      <div id="s-split-warn" class="warn" style="display:none"></div>
       <div class="sec">精算結果</div>
       <div class="card" id="s-result">為替レートを入力すると表示されます</div>
       <div class="sec" style="margin-top:12px">個人収支</div>
@@ -331,7 +354,14 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       </div>
     </div>
     <label>受益者</label>
-    <div id="ed-chips" style="margin-bottom:14px"></div>
+    <div id="ed-chips" style="margin-bottom:10px"></div>
+    <label>分け方</label>
+    <div class="split-seg" id="ed-split-seg">
+      <button type="button" class="sgb on" data-split="equal">均等</button>
+      <button type="button" class="sgb" data-split="percentage">割合</button>
+      <button type="button" class="sgb" data-split="amount">金額指定</button>
+    </div>
+    <div id="ed-split-detail" style="margin-bottom:8px"></div>
     <div style="display:flex;gap:8px">
       <button type="button" id="ed-cancel" class="btn-sm" style="flex:1;padding:11px">キャンセル</button>
       <button type="button" id="ed-save" class="btn" style="flex:1;padding:11px">保存</button>
@@ -513,14 +543,6 @@ function normalizeAmountText(s){
     .replace(/．/g,'.')
     .replace(/[，,]/g,'');
 }
-// 正の有限数だけを返す。それ以外はnull
-function parseAmount(raw){
-  const s=normalizeAmountText(raw).trim();
-  if(!s)return null;
-  const v=Number(s);
-  if(isNaN(v)||!isFinite(v)||v<=0)return null;
-  return v;
-}
 function attachAmountInput(inp){
   if(!inp)return;
   inp.addEventListener('input',()=>{
@@ -535,6 +557,42 @@ function attachAmountInput(inp){
     }
   });
 }
+
+// ===== 通貨の最小単位（小数桁） =====
+// JPY/KRWは小数0桁、その他の登録通貨は小数2桁
+const CUR_DECIMALS={JPY:0,KRW:0};
+function curDecimals(code){return CUR_DECIMALS[code]!==undefined?CUR_DECIMALS[code]:2;}
+function minorFactor(code){return Math.pow(10,curDecimals(code));}
+// 金額（通常単位）→最小通貨単位の整数。既存データの過剰な小数もここで丸める
+function toMinor(amount,code){return Math.round(amount*minorFactor(code));}
+function fmtMinor(minor,code){
+  return (minor/minorFactor(code)).toLocaleString('ja-JP',{maximumFractionDigits:curDecimals(code)});
+}
+// 金額文字列→最小通貨単位の整数。空欄・0以下・負数・通貨の小数桁超過はnull
+function parseAmountMinorStr(raw,code){
+  const s=normalizeAmountText(raw).trim();
+  if(!/^\d+(\.\d+)?$/.test(s))return null;
+  const dot=s.indexOf('.');
+  if(dot>=0&&s.length-dot-1>curDecimals(code))return null;
+  const v=Number(s);
+  if(!isFinite(v)||v<=0)return null;
+  return Math.round(v*minorFactor(code));
+}
+function amountFormatMsg(code){
+  const d=curDecimals(code);
+  return d===0
+    ?`金額を確認してください。\n${code}は小数を使えません（1以上の整数で入力）`
+    :`金額を確認してください。\n${code}は小数${d}桁までの正の数で入力できます`;
+}
+// 割合文字列→千分率(permille)の整数。0.1%刻み・小数1桁まで。空欄・0以下・負数・100超はnull
+function parsePermilleStr(raw){
+  const s=normalizeAmountText(raw).trim();
+  if(!/^\d{1,3}(\.\d)?$/.test(s))return null;
+  const v=Number(s);
+  if(!isFinite(v)||v<=0||v>100)return null;
+  return Math.round(v*10);
+}
+function fmtPermille(p){return p%10===0?String(p/10):(p/10).toFixed(1);}
 
 // ===== 通貨選択モーダル =====
 const RECENT_CURR_KEY='narika_recent_curr';
@@ -556,11 +614,15 @@ function curLabel(code){
   return (c.flag?c.flag+' ':'')+c.code+(c.name&&c.name!==c.code?' '+c.name:'');
 }
 // hidden input（値の保持）とボタン表示を同時に更新する
+// 通貨が実際に変わったときは分け方エディタへ通知する（金額指定欄の再入力用）
+const splitCurrencyHooks={};
 function setCurrencyField(inputId,code){
   const inp=document.getElementById(inputId);
   const lbl=document.getElementById(inputId+'-label');
+  const changed=!!inp&&inp.value!==code;
   if(inp)inp.value=code;
   if(lbl)lbl.textContent=curLabel(code);
+  if(changed&&splitCurrencyHooks[inputId])splitCurrencyHooks[inputId]();
 }
 let curPickerTarget=null;
 function currencyMatches(c,q){
@@ -833,6 +895,30 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
     return;
   }
   if(data.app!=='narika'||!data.group_name){await ask('このアプリのバックアップファイルではないようです。');return;}
+  // versionの検証：なし→1として受理／1・2→受理／3以上・文字列・小数・負数・nullなどは復元開始前に拒否
+  const ver=('version' in data)?data.version:1;
+  if(ver!==1&&ver!==2){
+    await ask(`このバックアップのバージョン（${String(ver)}）には対応していません。\n復元を中止しました。`);
+    return;
+  }
+  // version 2は分け方情報を復元開始前に検証し、1件でも不正ならグループを作らず中止する
+  if(ver===2&&Array.isArray(data.expenses)){
+    const problems=[];
+    data.expenses.forEach((e,i)=>{
+      const label=(e&&e.name)?e.name:`支払い${i+1}件目`;
+      const mode=(e&&e.split_mode!=null)?e.split_mode:'equal';
+      if(mode==='equal')return;
+      if(mode!=='percentage'&&mode!=='amount'){problems.push(`${label}：分け方の種類が不明です`);return;}
+      if(typeof e.amount!=='number'||!isFinite(e.amount)||e.amount<=0){problems.push(`${label}：金額が不正です`);return;}
+      const bens=String(e.beneficiaries==null?'':e.beneficiaries).split(',').filter(Boolean);
+      const reason=validateSplitDetails(mode,e.split_details,bens,toMinor(e.amount,e.currency));
+      if(reason)problems.push(`${label}：${reason}`);
+    });
+    if(problems.length){
+      await ask(`バックアップに問題があり、復元を中止しました。\n\n${problems.map(p=>'・'+p).join('\n')}\n\nグループは作成されていません。`);
+      return;
+    }
+  }
   const gname=data.group_name;
   if(!await ask(`「${gname}」を復元します。\n（新しいグループとして作成されます）\n\nよろしいですか？`))return;
   // 1. グループ作成
@@ -845,9 +931,13 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
     const {error}=await db.from('members').insert(rows);
     if(error){await ask('復元失敗（メンバー）: '+error.message);return;}
   }
-  // 3. 支払い
+  // 3. 支払い（version 1は全件均等、version 2は保存された分け方を復元）
   if(Array.isArray(data.expenses)&&data.expenses.length){
-    const rows=data.expenses.map(e=>({group_id:gid,name:e.name,date:e.date,amount:e.amount,currency:e.currency,payer:e.payer,beneficiaries:e.beneficiaries}));
+    const rows=data.expenses.map(e=>{
+      const hasSplit=ver===2&&(e.split_mode==='percentage'||e.split_mode==='amount');
+      return {group_id:gid,name:e.name,date:e.date,amount:e.amount,currency:e.currency,payer:e.payer,beneficiaries:e.beneficiaries,
+        split_mode:hasSplit?e.split_mode:'equal',split_details:hasSplit?e.split_details:null};
+    });
     const {error}=await db.from('expenses').insert(rows);
     if(error){await ask('復元失敗（支払い）: '+error.message);return;}
   }
@@ -948,21 +1038,93 @@ document.getElementById('btn-del-group').addEventListener('click',async()=>{
   showGroupList('push');
 });
 
-// ===== バックアップ =====
+// ===== 分け方の共通計算（精算画面・共有テキストの両方から使う） =====
+function sortByMemberOrder(names){
+  const idx=n=>{const i=members.findIndex(m=>m.name===n);return i<0?members.length:i;};
+  return names.slice().sort((a,b)=>idx(a)-idx(b));
+}
+function isPosInt(v){return typeof v==='number'&&isFinite(v)&&v>0&&Math.floor(v)===v;}
+// 保存済みsplit_detailsの検証。問題なければnull、問題があれば理由（日本語）を返す
+function validateSplitDetails(mode,details,bens,totalMinor){
+  if(!Array.isArray(details))return '分け方の情報が配列ではありません';
+  if(!details.every(x=>x&&typeof x==='object'&&typeof x.member==='string'))return '分け方のメンバー名が不正です';
+  const names=details.map(x=>x.member);
+  if(new Set(names).size!==names.length)return '同じメンバーが重複しています';
+  const bset=new Set(bens);
+  if(names.length!==bens.length||names.some(n=>!bset.has(n)))return '受益者と分け方のメンバーが一致しません';
+  if(mode==='percentage'){
+    if(!details.every(x=>isPosInt(x.share_permille)))return '割合の値が不正です';
+    if(details.reduce((s,x)=>s+x.share_permille,0)!==1000)return '割合の合計が100%ではありません';
+    return null;
+  }
+  if(mode==='amount'){
+    if(!details.every(x=>isPosInt(x.amount_minor)))return '負担額の値が不正です';
+    if(details.reduce((s,x)=>s+x.amount_minor,0)!==totalMinor)return '負担額の合計が支払額と一致しません';
+    return null;
+  }
+  return '分け方の種類が不明です';
+}
+// 均等割り：最小通貨単位で切り捨て、余りはメンバー登録順で先頭から1単位ずつ
+function equalAllocations(bens,totalMinor){
+  const ordered=sortByMemberOrder(bens);
+  const base=Math.floor(totalMinor/ordered.length);
+  const remainder=totalMinor-base*ordered.length;
+  return ordered.map((name,i)=>({member:name,amountMinor:base+(i<remainder?1:0)}));
+}
+// 割合：最大剰余法。切り捨て後の余りは小数部分が大きい順（同率はメンバー登録順）に1単位ずつ
+function percentageAllocations(details,totalMinor){
+  const rows=details.map(d=>{
+    // 掛け算が安全整数を超えないようBigIntで計算する
+    const prod=BigInt(totalMinor)*BigInt(d.share_permille);
+    return {member:d.member,base:Number(prod/1000n),rem:Number(prod%1000n)};
+  });
+  const orderIdx={};
+  sortByMemberOrder(rows.map(r=>r.member)).forEach((n,i)=>{orderIdx[n]=i;});
+  let left=totalMinor-rows.reduce((s,r)=>s+r.base,0);
+  const byRem=rows.slice().sort((a,b)=>b.rem-a.rem||orderIdx[a.member]-orderIdx[b.member]);
+  for(let i=0;i<byRem.length&&left>0;i++,left--)byRem[i].base++;
+  return rows.map(r=>({member:r.member,amountMinor:r.base}));
+}
+// 1件の支払いを最小通貨単位で受益者へ配分する。
+// 受益者が存在すれば amountMinor の合計 = totalMinor を必ず満たす。
+// 受益者0人は excluded:true（精算から除外）、不正な分け方情報は均等へフォールバック（fallback:true）
+function calculateAllocations(e){
+  const totalMinor=toMinor(e.amount,e.currency);
+  const bens=String(e.beneficiaries==null?'':e.beneficiaries).split(',').filter(Boolean);
+  if(!bens.length)return {allocations:[],totalMinor,fallback:false,excluded:true};
+  let mode=e.split_mode==null?'equal':e.split_mode;
+  let fallback=false;
+  if(mode!=='equal'&&validateSplitDetails(mode,e.split_details,bens,totalMinor)!==null){mode='equal';fallback=true;}
+  let allocations;
+  if(mode==='percentage')allocations=percentageAllocations(e.split_details,totalMinor);
+  else if(mode==='amount')allocations=e.split_details.map(d=>({member:d.member,amountMinor:d.amount_minor}));
+  else allocations=equalAllocations(bens,totalMinor);
+  return {allocations,totalMinor,fallback,excluded:false};
+}
+// 表示用：split_detailsをメンバー登録順に並べる
+function sortedSplitDetails(e){
+  const order=sortByMemberOrder(e.split_details.map(d=>d.member));
+  return e.split_details.slice().sort((a,b)=>order.indexOf(a.member)-order.indexOf(b.member));
+}
 function calcBalances(){
   const bal={};members.forEach(m=>bal[m.name]=0);
-  let total=0,ready=true;
+  let total=0,ready=true,hasFallback=false,hasExcluded=false;
   expenses.forEach(e=>{
-    const j=jpy(e.amount,e.currency);
-    if(j===null){ready=false;return;}
-    const bens=e.beneficiaries.split(',').filter(Boolean);
-    const share=j/bens.length;
+    const r=rate(e.currency);
+    if(r===null){ready=false;return;}
+    const res=calculateAllocations(e);
+    if(res.excluded){hasExcluded=true;return;}
+    if(res.fallback)hasFallback=true;
+    const f=minorFactor(e.currency);
+    const j=res.totalMinor/f*r;
     bal[e.payer]=(bal[e.payer]||0)+j;
-    bens.forEach(b=>{bal[b]=(bal[b]||0)-share;});
+    res.allocations.forEach(a=>{bal[a.member]=(bal[a.member]||0)-a.amountMinor/f*r;});
     total+=j;
   });
-  return {bal,total,ready};
+  return {bal,total,ready,hasFallback,hasExcluded};
 }
+
+// ===== バックアップ =====
 function downloadFile(filename,text,mime){
   const blob=new Blob([text],{type:mime||'text/plain;charset=utf-8'});
   const url=URL.createObjectURL(blob);
@@ -986,8 +1148,18 @@ function buildSummaryText(){
   else{
     expenses.forEach(e=>{
       const bens=e.beneficiaries.split(',').filter(Boolean);
-      const blab=bens.length===members.length?'全員':bens.join('・');
-      t+=`\n[${e.date}] ${e.name}\n  金額：${e.amount.toLocaleString()} ${e.currency}\n  立替えた人：${e.payer}\n  受益者：${blab}\n`;
+      const res=calculateAllocations(e);
+      const valid=!res.fallback&&!res.excluded;
+      let benLine;
+      if(valid&&e.split_mode==='percentage'){
+        benLine=`  受益者：${sortedSplitDetails(e).map(d=>`${d.member}${fmtPermille(d.share_permille)}%`).join('・')}`;
+      }else if(valid&&e.split_mode==='amount'){
+        benLine=`  負担額：${sortedSplitDetails(e).map(d=>`${d.member}${fmtMinor(d.amount_minor,e.currency)}`).join('・')}`;
+      }else{
+        const blab=bens.length===members.length?'全員':bens.join('・');
+        benLine=`  受益者：${blab}`;
+      }
+      t+=`\n[${e.date}] ${e.name}\n  金額：${e.amount.toLocaleString()} ${e.currency}\n  立替えた人：${e.payer}\n${benLine}\n`;
     });
   }
   const used=[...new Set(expenses.map(e=>e.currency))];
@@ -1056,13 +1228,17 @@ document.getElementById('btn-backup-json').addEventListener('click',async()=>{
     if(!await ask(msg,'保存を続ける'))return;
   }
   const gname=document.getElementById('g-title').textContent;
-  // 復元機能（app:'narika', version:1）と完全互換の形式を維持する
+  // version 2：割合・金額指定の支払いはsplit_mode/split_detailsを含める（均等は省略可）
   const data={
-    app:'narika',version:1,
+    app:'narika',version:2,
     exported_at:new Date().toISOString(),
     group_name:gname,
     members:members.map(m=>({name:m.name})),
-    expenses:expenses.map(e=>({name:e.name,date:e.date,amount:e.amount,currency:e.currency,payer:e.payer,beneficiaries:e.beneficiaries})),
+    expenses:expenses.map(e=>{
+      const o={name:e.name,date:e.date,amount:e.amount,currency:e.currency,payer:e.payer,beneficiaries:e.beneficiaries};
+      if(e.split_mode==='percentage'||e.split_mode==='amount'){o.split_mode=e.split_mode;o.split_details=e.split_details;}
+      return o;
+    }),
     rates:rates
   };
   const json=JSON.stringify(data,null,2);
@@ -1173,6 +1349,7 @@ document.getElementById('btn-add-member').addEventListener('click',async()=>{
   const inp=document.getElementById('inp-member');
   const name=inp.value.trim();
   if(!name)return;
+  if(/[,，]/.test(name)){await ask('メンバー名にカンマ「,」は使えません。');return;}
   if(!GID){await ask('グループが選択されていません');return;}
   if(members.find(m=>m.name===name)){await ask('同じ名前がいます');return;}
   const {error}=await db.from('members').insert({group_id:GID,name});
@@ -1224,28 +1401,183 @@ function buildChips(){
     `<span class="chip on" data-cid="${m.id}">
       <span class="av" style="${av(i)}">${ini(m.name)}</span>${m.name}
     </span>`).join('');
-  wrap.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>c.classList.toggle('on')));
+  wrap.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');regSplit.refresh();}));
+  regSplit.refresh();
 }
 function selectedBens(){
   return members.filter(m=>document.querySelector(`[data-cid="${m.id}"].on`)).map(m=>m.name);
 }
 
+// ===== 分け方エディタ（登録フォームと編集ダイアログで共通） =====
+function createSplitEditor(cfg){
+  // 割合と金額指定の入力値はモード別に保持し、モードを切り替えても消えないようにする
+  const st={mode:'equal',vals:{percentage:{},amount:{}}};
+  function syncSeg(){
+    document.querySelectorAll('#'+cfg.segId+' .sgb').forEach(b=>b.classList.toggle('on',b.dataset.split===st.mode));
+  }
+  function box(){return document.getElementById(cfg.boxId);}
+  function bensNow(){return sortByMemberOrder(cfg.getBens());}
+  function updateSum(){
+    const el=box().querySelector('[data-split-sum]');
+    if(!el)return;
+    const bens=bensNow();
+    const vals=st.vals[st.mode];
+    if(st.mode==='percentage'){
+      let sum=0,bad=false;
+      bens.forEach(n=>{const p=parsePermilleStr(vals[n]||'');if(p===null)bad=true;else sum+=p;});
+      el.textContent=`合計 ${fmtPermille(sum)}% ／ 100%`;
+      el.classList.toggle('ng',bad||sum!==1000);
+    }else{
+      const code=cfg.getCurrency();
+      const total=cfg.getTotalMinor();
+      let sum=0,bad=false;
+      bens.forEach(n=>{const m=parseAmountMinorStr(vals[n]||'',code);if(m===null)bad=true;else sum+=m;});
+      el.textContent=total===null
+        ?`合計 ${fmtMinor(sum,code)} ／ 支払額が未入力です`
+        :`合計 ${fmtMinor(sum,code)} ／ 支払額 ${fmtMinor(total,code)}`;
+      el.classList.toggle('ng',bad||total===null||sum!==total);
+    }
+  }
+  function render(){
+    const el=box();
+    if(!el)return;
+    if(st.mode==='equal'){el.innerHTML='';return;}
+    const isPct=st.mode==='percentage';
+    const code=cfg.getCurrency();
+    const bens=bensNow();
+    const vals=st.vals[st.mode];
+    // 外した受益者の入力値は破棄する（再選択時は空欄から）
+    Object.keys(vals).forEach(n=>{if(!bens.includes(n))delete vals[n];});
+    if(!bens.length){
+      el.innerHTML='<div class="split-box" style="color:#dc2626;font-size:12px">受益者を1人以上選んでください</div>';
+      return;
+    }
+    el.innerHTML=`<div class="split-box">
+      ${bens.map(n=>`<div class="split-row">
+        <span class="split-name">${esc(n)}</span>
+        <input type="text" inputmode="decimal" autocomplete="off" enterkeyhint="done" data-split-m="${esc(n)}" value="${esc(vals[n]||'')}" placeholder="0">
+        <span class="split-unit">${isPct?'%':esc(code)}</span>
+      </div>`).join('')}
+      <button type="button" class="btn-sm split-even" data-split-even>${isPct?'均等割合にする':'均等に配分する'}</button>
+      <div class="split-sum" data-split-sum></div>
+      <div class="split-note">${isPct?'0.1%刻みで、合計が100%になるように入力してください。':'合計が支払額と一致するように入力してください。'}</div>
+    </div>`;
+    el.querySelectorAll('[data-split-m]').forEach(inp=>{
+      attachAmountInput(inp);
+      inp.addEventListener('input',()=>{vals[inp.dataset.splitM]=inp.value;updateSum();});
+      if(!isPct){
+        // 金額指定は確定時に3桁区切りで整形する
+        inp.addEventListener('blur',()=>{
+          const m=parseAmountMinorStr(inp.value,cfg.getCurrency());
+          if(m!==null){inp.value=fmtMinor(m,cfg.getCurrency());vals[inp.dataset.splitM]=inp.value;}
+        });
+      }
+    });
+    el.querySelector('[data-split-even]').addEventListener('click',()=>{
+      const bs=bensNow();
+      if(!bs.length)return;
+      if(isPct){
+        const base=Math.floor(1000/bs.length);
+        const left=1000-base*bs.length;
+        bs.forEach((n,i)=>{vals[n]=fmtPermille(base+(i<left?1:0));});
+      }else{
+        const total=cfg.getTotalMinor();
+        if(total===null){toast('先に支払額を入力してください','error');return;}
+        equalAllocations(bs,total).forEach(a=>{vals[a.member]=fmtMinor(a.amountMinor,cfg.getCurrency());});
+      }
+      render();
+    });
+    updateSum();
+  }
+  document.querySelectorAll('#'+cfg.segId+' .sgb').forEach(b=>{
+    b.addEventListener('click',()=>{st.mode=b.dataset.split;syncSeg();render();});
+  });
+  return {
+    refresh(){render();},
+    refreshSum(){updateSum();},
+    clearAmounts(){st.vals.amount={};if(st.mode==='amount')render();},
+    reset(mode,details,code){
+      st.mode=(mode==='percentage'||mode==='amount')?mode:'equal';
+      st.vals={percentage:{},amount:{}};
+      if(Array.isArray(details)){
+        details.forEach(d=>{
+          if(!d||typeof d.member!=='string')return;
+          if(st.mode==='percentage'&&isPosInt(d.share_permille))st.vals.percentage[d.member]=fmtPermille(d.share_permille);
+          if(st.mode==='amount'&&isPosInt(d.amount_minor))st.vals.amount[d.member]=fmtMinor(d.amount_minor,code);
+        });
+      }
+      syncSeg();render();
+    },
+    // 保存用の検証。okならsplit_mode/split_detailsを返す
+    build(totalMinor){
+      const bens=bensNow();
+      if(st.mode==='equal')return {ok:true,split_mode:'equal',split_details:null};
+      const vals=st.vals[st.mode];
+      if(st.mode==='percentage'){
+        const details=[];let sum=0;
+        for(const n of bens){
+          const raw=String(vals[n]||'').trim();
+          if(!raw)return {ok:false,msg:`${n}の割合を入力してください`};
+          const p=parsePermilleStr(raw);
+          if(p===null)return {ok:false,msg:`${n}の割合が正しくありません。\n0.1〜100の範囲で、小数1桁（0.1%刻み）まで入力できます`};
+          details.push({member:n,share_permille:p});sum+=p;
+        }
+        if(sum!==1000)return {ok:false,msg:`割合の合計が100%ではありません（現在 ${fmtPermille(sum)}%）。\n合計が100%になるように調整してください`};
+        return {ok:true,split_mode:'percentage',split_details:details};
+      }
+      const code=cfg.getCurrency();
+      if(totalMinor===null)return {ok:false,msg:'先に支払額を入力してください'};
+      const details=[];let sum=0;
+      for(const n of bens){
+        const raw=String(vals[n]||'').trim();
+        if(!raw)return {ok:false,msg:`${n}の負担額を入力してください`};
+        const m=parseAmountMinorStr(raw,code);
+        if(m===null)return {ok:false,msg:`${n}の負担額が正しくありません。\n${amountFormatMsg(code)}`};
+        details.push({member:n,amount_minor:m});sum+=m;
+      }
+      if(sum!==totalMinor)return {ok:false,msg:`負担額の合計（${fmtMinor(sum,code)} ${code}）が支払額（${fmtMinor(totalMinor,code)} ${code}）と一致しません`};
+      return {ok:true,split_mode:'amount',split_details:details};
+    },
+  };
+}
+const regSplit=createSplitEditor({
+  segId:'split-seg',boxId:'split-detail',
+  getBens:()=>selectedBens(),
+  getCurrency:()=>document.getElementById('inp-ecur').value||'JPY',
+  getTotalMinor:()=>parseAmountMinorStr(document.getElementById('inp-eamt').value,document.getElementById('inp-ecur').value||'JPY'),
+});
+const edSplit=createSplitEditor({
+  segId:'ed-split-seg',boxId:'ed-split-detail',
+  getBens:()=>Array.from(document.querySelectorAll('#ed-chips .chip.on')).map(c=>c.dataset.edname),
+  getCurrency:()=>document.getElementById('ed-cur').value||'JPY',
+  getTotalMinor:()=>parseAmountMinorStr(document.getElementById('ed-amt').value,document.getElementById('ed-cur').value||'JPY'),
+});
+splitCurrencyHooks['inp-ecur']=()=>regSplit.clearAmounts();
+splitCurrencyHooks['ed-cur']=()=>edSplit.clearAmounts();
+document.getElementById('inp-eamt').addEventListener('input',()=>regSplit.refreshSum());
+document.getElementById('ed-amt').addEventListener('input',()=>edSplit.refreshSum());
+
 document.getElementById('btn-add-expense').addEventListener('click',async()=>{
   const name=document.getElementById('inp-ename').value.trim();
-  const amt=parseAmount(document.getElementById('inp-eamt').value);
+  const rawAmt=document.getElementById('inp-eamt').value;
   const cur=document.getElementById('inp-ecur').value||'JPY';
   const payer=document.getElementById('inp-epayer').value;
   const date=document.getElementById('inp-edate').value;
-  if(!name||amt===null){await ask('内容と金額を入力してください');return;}
+  if(!name||!normalizeAmountText(rawAmt).trim()){await ask('内容と金額を入力してください');return;}
+  const amtMinor=parseAmountMinorStr(rawAmt,cur);
+  if(amtMinor===null){await ask(amountFormatMsg(cur));return;}
   const bens=selectedBens();
   if(!bens.length){await ask('受益者を1人以上選んでください');return;}
-  const {error}=await db.from('expenses').insert({group_id:GID,name,amount:amt,currency:cur,payer,date,beneficiaries:bens.join(',')});
+  const sp=regSplit.build(amtMinor);
+  if(!sp.ok){await ask(sp.msg);return;}
+  const {error}=await db.from('expenses').insert({group_id:GID,name,amount:amtMinor/minorFactor(cur),currency:cur,payer,date,beneficiaries:bens.join(','),split_mode:sp.split_mode,split_details:sp.split_details});
   if(error){console.error('[NARIKA] 支払い登録失敗',error);toast('支払いを登録できませんでした','error');return;}
   pushRecentCurr(cur);
   toast('支払いを登録しました');
   document.getElementById('inp-ename').value='';
   document.getElementById('inp-eamt').value='';
   document.getElementById('inp-edate').value=today();
+  regSplit.reset('equal');
   buildChips();
   loadExpenses();
 });
@@ -1259,9 +1591,21 @@ function renderExpenses(){
     const tag=j!==null?`<span class="tag tag-ok" style="font-size:12px">円換算 ≈${Math.round(j).toLocaleString()}円</span>`:`<span class="tag tag-w" style="font-size:12px">為替レート入力待ち</span>`;
     const bens=e.beneficiaries.split(',').filter(Boolean);
     const isAll=members.length>0&&bens.length===members.length;
-    const benHtml=isAll
-      ?'<span class="exp-all-badge">全員</span>'
-      :bens.map(b=>`<span class="exp-ben-chip">${esc(b)}</span>`).join('');
+    const res=calculateAllocations(e);
+    const useSplit=!res.fallback&&!res.excluded&&(e.split_mode==='percentage'||e.split_mode==='amount');
+    let benHtml;
+    if(useSplit){
+      const parts=sortedSplitDetails(e).map(d=>e.split_mode==='percentage'
+        ?`${esc(d.member)}${fmtPermille(d.share_permille)}%`
+        :`${esc(d.member)}${fmtMinor(d.amount_minor,e.currency)}`);
+      const shown=parts.slice(0,3).join('・')+(parts.length>3?`・ほか${parts.length-3}人`:'');
+      benHtml=`<span class="tag tag-split" style="margin-right:6px">${e.split_mode==='percentage'?'割合':'金額指定'}</span>${shown}`;
+    }else{
+      benHtml=isAll
+        ?'<span class="exp-all-badge">全員</span>'
+        :bens.map(b=>`<span class="exp-ben-chip">${esc(b)}</span>`).join('');
+    }
+    const chkTag=(res.fallback||res.excluded)?'<span class="tag tag-chk">要確認</span>':'';
     return `<div class="card" style="margin-bottom:8px">
       <div class="exp-top">
         <span class="exp-date">${esc(fdate(e.date))}</span>
@@ -1271,7 +1615,7 @@ function renderExpenses(){
       <div class="exp-row"><span class="exp-lbl">支払った人</span><span class="exp-val">${esc(e.payer)}</span></div>
       <div class="exp-row" style="margin-bottom:0"><span class="exp-lbl">負担する人</span><span class="exp-val" style="font-weight:500">${benHtml}</span></div>
       <div class="exp-foot">
-        ${tag}
+        <span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">${tag}${chkTag}</span>
         <span style="display:flex;gap:6px">
           <button type="button" class="btn-sm" data-edit="${e.id}" style="font-size:12px">編集</button>
           <button type="button" class="btn-sm btn-red" data-eid="${e.id}" style="font-size:12px">削除</button>
@@ -1314,7 +1658,9 @@ function openEditExpense(id){
     `<span class="chip${bens.includes(m.name)?' on':''}" data-edcid="${m.id}" data-edname="${m.name}">
       <span class="av" style="${av(i)}">${ini(m.name)}</span>${m.name}
     </span>`).join('');
-  chips.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>c.classList.toggle('on')));
+  chips.querySelectorAll('.chip').forEach(c=>c.addEventListener('click',()=>{c.classList.toggle('on');edSplit.refresh();}));
+  // 分け方：保存済みの方式と値で開く（旧データや不明な方式は均等）
+  edSplit.reset(e.split_mode,e.split_details,e.currency);
   document.getElementById('edit-bg').style.display='flex';
 }
 document.getElementById('ed-cancel').addEventListener('click',()=>{
@@ -1324,14 +1670,18 @@ document.getElementById('ed-cancel').addEventListener('click',()=>{
 document.getElementById('ed-save').addEventListener('click',async()=>{
   if(!editingId)return;
   const name=document.getElementById('ed-name').value.trim();
-  const amt=parseAmount(document.getElementById('ed-amt').value);
-  const cur=document.getElementById('ed-cur').value;
+  const rawAmt=document.getElementById('ed-amt').value;
+  const cur=document.getElementById('ed-cur').value||'JPY';
   const payer=document.getElementById('ed-payer').value;
   const date=document.getElementById('ed-date').value;
-  if(!name||amt===null){await ask('内容と金額を入力してください');return;}
+  if(!name||!normalizeAmountText(rawAmt).trim()){await ask('内容と金額を入力してください');return;}
+  const amtMinor=parseAmountMinorStr(rawAmt,cur);
+  if(amtMinor===null){await ask(amountFormatMsg(cur));return;}
   const bens=Array.from(document.querySelectorAll('#ed-chips .chip.on')).map(c=>c.dataset.edname);
   if(!bens.length){await ask('受益者を1人以上選んでください');return;}
-  const {error}=await db.from('expenses').update({name,amount:amt,currency:cur,payer,date,beneficiaries:bens.join(',')}).eq('id',editingId);
+  const sp=edSplit.build(amtMinor);
+  if(!sp.ok){await ask(sp.msg);return;}
+  const {error}=await db.from('expenses').update({name,amount:amtMinor/minorFactor(cur),currency:cur,payer,date,beneficiaries:bens.join(','),split_mode:sp.split_mode,split_details:sp.split_details}).eq('id',editingId);
   if(error){console.error('[NARIKA] 支払い保存失敗',error);toast('支払いを保存できませんでした','error');return;}
   pushRecentCurr(cur);
   document.getElementById('edit-bg').style.display='none';
@@ -1381,17 +1731,16 @@ function renderSettle(){
   if(!tel)return;
   const missing=[...new Set(expenses.map(e=>e.currency).filter(c=>rate(c)===null))];
   wel.style.display=missing.length?'block':'none';
-  const bal={};members.forEach(m=>bal[m.name]=0);
-  let total=0,ready=true;
-  expenses.forEach(e=>{
-    const j=jpy(e.amount,e.currency);
-    if(j===null){ready=false;return;}
-    const bens=e.beneficiaries.split(',').filter(Boolean);
-    const share=j/bens.length;
-    bal[e.payer]=(bal[e.payer]||0)+j;
-    bens.forEach(b=>{bal[b]=(bal[b]||0)-share;});
-    total+=j;
-  });
+  // 均等・割合・金額指定を共通関数で集計（共有テキストと同じ計算）
+  const {bal,total,ready,hasFallback,hasExcluded}=calcBalances();
+  const swel=document.getElementById('s-split-warn');
+  if(swel){
+    const warns=[];
+    if(hasFallback)warns.push('分け方情報を確認できない支払いがあるため、均等として計算しています。');
+    if(hasExcluded)warns.push('受益者がいない支払いがあるため、その支払いは計算から除外しています。');
+    swel.textContent=warns.join(' ');
+    swel.style.display=warns.length?'block':'none';
+  }
   if(!ready||!expenses.length){
     tel.textContent='— 円';pel.textContent='— 円';
     rel.innerHTML='<div style="color:#aaa;font-size:13px">為替レートを入力すると表示されます</div>';
