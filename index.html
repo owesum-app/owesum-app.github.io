@@ -699,7 +699,17 @@ attachAmountInput(document.getElementById('ed-amt'));
 // ===== URL管理（?g=グループID） =====
 // グループを開いている間はアドレスバーを ?g=ID に保ち、一覧では ?g= を外す
 const groupNames={};
-function groupUrl(id){return location.origin+location.pathname+'?g='+encodeURIComponent(id);}
+// 招待URLは必ずこの関数を通す（コピー・共有シート・メールで完全に同一のURLにするため）
+function buildInviteUrl(id){return location.origin+location.pathname+'?g='+encodeURIComponent(id);}
+function buildInviteSubject(gname){return gname?`OweSum「${gname}」への招待`:'OweSumへの招待';}
+function buildInviteMessage(gname,url){return `「${gname}」に招待されました。\nOweSumで一緒に精算しましょう。\n\n${url}`;}
+function buildInviteMailto(gname,url){
+  const subject=buildInviteSubject(gname);
+  const body=buildInviteMessage(gname,url);
+  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+// type="module"はトップレベル宣言をwindowへ公開しないため、テスト・検証用に明示公開する（副作用のない純関数のみ）
+Object.assign(window,{buildInviteUrl,buildInviteSubject,buildInviteMessage,buildInviteMailto});
 function setUrlForGroup(id,mode){
   if(mode==='none')return;
   const target=location.pathname+'?g='+encodeURIComponent(id);
@@ -986,7 +996,7 @@ function enterGroup(id,name,urlMode){
   setUrlForGroup(id,urlMode||'push');
   document.getElementById('g-title').textContent=name;
   const linkEl=document.getElementById('group-link-url');
-  if(linkEl)linkEl.textContent=groupUrl(id);
+  if(linkEl)linkEl.textContent=buildInviteUrl(id);
   showPage('p-main');
   document.getElementById('main-nav').style.display='flex';
   // メンバータブに戻す
@@ -1192,7 +1202,7 @@ function buildSummaryText(){
 document.getElementById('btn-share').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
   const gname=document.getElementById('g-title').textContent;
-  const url=groupUrl(GID);
+  const url=buildInviteUrl(GID);
   const text=buildSummaryText()+`\n━━━━━━━━━━━━━━━\n■ このグループを開く\n${url}\n`;
   // スマホ：共有メニュー（LINE等）／パソコン：コピー
   if(navigator.share){
@@ -1305,20 +1315,24 @@ async function copyTextToClipboard(text){
 }
 document.getElementById('btn-copy-link').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
-  const ok=await copyTextToClipboard(groupUrl(GID));
+  const ok=await copyTextToClipboard(buildInviteUrl(GID));
   if(ok)toast('リンクをコピーしました');
   else toast('リンクをコピーできませんでした','error');
 });
 document.getElementById('btn-share-link').addEventListener('click',async()=>{
   if(!GID){await ask('グループが選択されていません');return;}
   const gname=document.getElementById('g-title').textContent;
-  const url=groupUrl(GID);
-  const text=`「${gname}」の割り勘記録です。このリンクから一緒に見て編集できます。`;
+  const url=buildInviteUrl(GID);
+  // URLは共有シートの別項目(url)だけに頼らず、必ずtext本文にも埋め込む
+  // （メールアプリの共有連携によってはurl項目が本文に反映されないことがあるため）
+  const text=buildInviteMessage(gname,url);
   if(navigator.share){
-    try{await navigator.share({title:`${gname}の割り勘記録`,text,url});}catch(err){/* キャンセル時は何もしない */}
+    try{await navigator.share({title:buildInviteSubject(gname),text,url});}catch(err){/* キャンセル時は何もしない */}
   }else{
-    const ok=await copyTextToClipboard(text+'\n'+url);
-    if(ok)toast('共有用リンクをコピーしました');
+    // メール件名を確実に設定するためmailto:を使用。LINE等に貼り付けられるようクリップボードにもコピーしておく
+    const ok=await copyTextToClipboard(text);
+    location.href=buildInviteMailto(gname,url);
+    if(ok)toast('招待リンクをコピーしました（メールアプリも起動します）');
     else toast('リンクをコピーできませんでした','error');
   }
 });
