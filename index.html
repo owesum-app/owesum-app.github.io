@@ -10,16 +10,19 @@
 <meta name="description" content="飲み会、旅行、イベントの立替をかんたん記録。誰が誰にいくら払えばよいかを自動計算します。">
 <meta property="og:title" content="OweSum｜みんなの立替を、かんたん精算">
 <meta property="og:description" content="飲み会、旅行、イベントの立替をかんたん記録。誰が誰にいくら払えばよいかを自動計算します。">
-<meta property="og:image" content="https://narimatsumasato.github.io/narika/owesum-ogp.png">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+<meta property="og:image" content="https://narimatsumasato.github.io/narika/owesum-line-20260724.png">
+<meta property="og:image:width" content="1731">
+<meta property="og:image:height" content="909">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="OweSum 飲み会も旅行も簡単に精算 傾斜配分OK！">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://narimatsumasato.github.io/narika/">
 <meta property="og:locale" content="ja_JP">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="OweSum｜みんなの立替を、かんたん精算">
 <meta name="twitter:description" content="飲み会、旅行、イベントの立替をかんたん記録。誰が誰にいくら払えばよいかを自動計算します。">
-<meta name="twitter:image" content="https://narimatsumasato.github.io/narika/owesum-ogp.png">
+<meta name="twitter:image" content="https://narimatsumasato.github.io/narika/owesum-line-20260724.png">
+<meta name="twitter:image:alt" content="OweSum 飲み会も旅行も簡単に精算 傾斜配分OK！">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
@@ -141,6 +144,10 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .hero-btn:focus-visible{outline:3px solid #1e3a5f;outline-offset:2px}
 .hero-note{display:none;font-size:11px;color:#444;margin:8px 0 0;font-weight:600}
 .hero-media{position:static}
+/* 招待入口(#p-intro)の画像：通常トップのヒーローと同系統に、横幅いっぱい（cover+top）で表示。PCでは480px幅で中央寄せ */
+.intro-media{width:100%;margin:0;padding:0;line-height:0;overflow:hidden}
+.intro-img{display:block;width:100%;height:auto;object-fit:cover;object-position:top center;aspect-ratio:941/1500}
+@media (min-width:768px){.intro-media{max-width:480px;margin:0 auto}}
 /* スマホのトップ：画像を上に置き、その下に「新しいグループを作る」主ボタン→参加中のグループ一覧→（下部に）復元リンク、の縦積み */
 @media (max-width:767px){
   #p-group .wrap{padding-top:6px}
@@ -197,15 +204,11 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 
 <!-- 初回紹介画面（招待URLを初めて開いた端末にだけ表示） -->
 <div id="p-intro" class="page">
+  <!-- 通常トップと同系統：画像を横幅いっぱいで見せ、その直下に招待カードだけを自然につなげる -->
+  <div class="intro-media">
+    <img src="owesum-hero-mobile-20260723.png" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="intro-img" onerror="this.closest('.intro-media').style.display='none'">
+  </div>
   <div class="wrap">
-    <div style="margin:-16px -16px 16px;text-align:center;background:#f5f5f5">
-      <img src="owesum-hero-desktop.webp?v=2" alt="OweSum（オーサム）" style="max-width:100%;max-height:42vh;width:auto;height:auto;display:inline-block" onerror="this.parentNode.style.display='none'">
-    </div>
-    <div style="text-align:center;margin-bottom:20px">
-      <div style="font-size:30px;font-weight:800;color:#2563eb">OweSum</div>
-      <div style="font-size:14px;color:#666;margin-top:2px">オーサム</div>
-      <div style="font-size:14px;color:#555;margin-top:10px">みんなの立替を、かんたん割り勘</div>
-    </div>
     <div class="card" style="text-align:center;padding:22px 16px">
       <div style="font-size:15px;line-height:1.7;margin-bottom:16px;word-break:break-word">「<span id="intro-gname" style="font-weight:700"></span>」に招待されました</div>
       <button type="button" class="btn" id="btn-intro-open">グループを開く</button>
@@ -226,7 +229,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     <div class="hero-media">
       <picture>
         <source media="(min-width: 768px)" srcset="owesum-hero-desktop.webp?v=2">
-        <img src="owesum-hero-mobile.webp?v=4" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="hero-img" onerror="this.style.display='none';this.closest('.hero').classList.add('img-failed')">
+        <img src="owesum-hero-mobile-20260723.png" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="hero-img" onerror="this.style.display='none';this.closest('.hero').classList.add('img-failed')">
       </picture>
     </div>
   </section>
