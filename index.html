@@ -72,10 +72,18 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .rb.on{background:#2563eb;color:#fff;border-color:#2563eb}
 .warn{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px;font-size:12px;color:#92400e;margin-bottom:10px}
 .info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px;font-size:12px;color:#1e40af;margin-bottom:10px}
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);background:#fff;border-top:1px solid #e5e5e5;display:flex;width:100%;max-width:480px;padding-bottom:env(safe-area-inset-bottom)}
-.nb{flex:1;padding:10px 4px 8px;font-size:10px;border:none;background:transparent;color:#aaa;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;font-family:inherit}
-.nb i{font-size:22px}
-.nb.on{color:#2563eb}
+/* 下部ナビ：不透明な白＋上に境界線と影で「操作できるバー」だと分かるようにする。未選択も濃いグレーで読みやすく、選択中は青の角丸背景＋白文字で一目で分かる */
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);background:#fff;border-top:1px solid #cbd5e1;box-shadow:0 -3px 12px rgba(15,23,42,0.10);display:flex;gap:4px;width:100%;max-width:480px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));z-index:60}
+.nb{flex:1;min-height:56px;padding:7px 2px;font-size:11px;font-weight:600;border:none;background:transparent;color:#475569;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-family:inherit;border-radius:12px}
+.nb i{font-size:25px}
+.nb:active{background:#f1f5f9}
+.nb.on{background:#2563eb;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(37,99,235,0.35)}
+.nb.on i{color:#fff}
+/* 精算共有の方法を選ぶアクションシート */
+.share-opt{width:100%;display:flex;align-items:center;gap:12px;padding:15px 16px;margin:0 0 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-family:inherit;font-size:15px;font-weight:600;color:#1a1a1a;cursor:pointer;text-align:left}
+.share-opt:active{background:#f0f7ff}
+.share-opt i{font-size:22px;color:#2563eb;flex:none}
+.share-opt.share-cancel{justify-content:center;color:#64748b;border-color:#e2e8f0;background:#f8fafc;margin-bottom:0}
 .logo{text-align:center;padding:40px 0 30px}
 .logo h1{font-size:36px;font-weight:800;color:#2563eb}
 .logo p{font-size:13px;color:#888;margin-top:6px}
@@ -89,7 +97,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 /* 精算結果を共有するボタン */
 .btn-share-settle{margin-top:14px}
 /* トースト通知 */
-#toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom));z-index:10005;display:flex;flex-direction:column;gap:8px;align-items:center;width:calc(100% - 32px);max-width:448px;pointer-events:none}
+#toast-wrap{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom));z-index:10005;display:flex;flex-direction:column;gap:8px;align-items:center;width:calc(100% - 32px);max-width:448px;pointer-events:none}
 .toast{background:#1f2937;color:#fff;padding:10px 18px;border-radius:99px;font-size:13px;font-weight:500;box-shadow:0 4px 12px rgba(0,0,0,0.25);opacity:0;transform:translateY(8px);transition:opacity .25s,transform .25s;max-width:100%;text-align:center}
 .toast.show{opacity:1;transform:translateY(0)}
 .toast.toast-error{background:#dc2626}
@@ -141,8 +149,9 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   /* 画像→主ボタンの順に縦並び。画像は1画面を占有しないよう高さを抑え、ボタンと一覧が同じ初期画面に入るようにする */
   .hero{position:static;display:flex;flex-direction:column;height:auto;min-height:0;max-height:none;overflow:visible;background:linear-gradient(160deg,#fdf6ec,#eef4fb);padding:8px 0 0}
   .hero::before{display:none}
-  .hero-media{order:1;display:block;text-align:center;padding:0 16px}
-  .hero-img{position:static;width:auto;max-width:100%;max-height:40vh;height:auto;object-fit:contain;display:inline-block}
+  /* 画像はトップの主役。横幅いっぱい（画面幅100%）で表示し左右の余白を作らない。縦横比は保ち、画像下部の白フェードだけをcover+top固定で縦に少しトリミングして下の大きな空白を防ぐ（横方向は一切切らない） */
+  .hero-media{order:1;display:block;width:100%;margin:0;padding:0;overflow:hidden;line-height:0}
+  .hero-img{position:static;display:block;width:100%;height:auto;max-width:none;max-height:none;object-fit:cover;object-position:top center;aspect-ratio:941/1500}
   .hero-inner{order:2;position:static;display:block;z-index:2;margin:0;padding:12px 16px 2px;width:auto;max-width:none;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;border-radius:0;box-shadow:none}
   .hero-brand,.hero-title,.hero-desc,.hero-note,.hero-groups-link{display:none}
   .hero-btn{width:100%}
@@ -337,7 +346,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <div class="card" id="s-result">為替レートを入力すると表示されます</div>
       <div class="sec" style="margin-top:12px">個人収支</div>
       <div class="card" id="s-balance"></div>
-      <button type="button" class="btn btn-share-settle" id="btn-share-settle"><i class="ti ti-share" style="font-size:18px;vertical-align:-3px;margin-right:5px"></i>精算結果を共有</button>
+      <button type="button" class="btn btn-share-settle" id="btn-share-settle"><i class="ti ti-share" style="font-size:18px;vertical-align:-3px;margin-right:5px"></i>精算結果をLINE・メールで共有</button>
     </div>
 
   </div>
@@ -412,6 +421,17 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <input type="text" id="cur-search" placeholder="通貨コード・通貨名・国名で検索" autocomplete="off">
     </div>
     <div id="cur-list" style="overflow-y:auto;flex:1;padding-bottom:env(safe-area-inset-bottom)"></div>
+  </div>
+</div>
+
+<!-- 精算結果の共有方法を選ぶアクションシート -->
+<div id="share-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10002;align-items:flex-end;justify-content:center" role="dialog" aria-modal="true" aria-label="共有方法を選択">
+  <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:14px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(15,23,42,0.18)">
+    <div style="text-align:center;font-size:14px;font-weight:700;color:#1a1a1a;padding:2px 0 14px">精算結果の共有方法を選ぶ</div>
+    <button type="button" class="share-opt" id="share-line"><i class="ti ti-brand-line"></i>LINEなどで共有</button>
+    <button type="button" class="share-opt" id="share-mail"><i class="ti ti-mail"></i>メールで送る</button>
+    <button type="button" class="share-opt" id="share-copy"><i class="ti ti-copy"></i>結果をコピー</button>
+    <button type="button" class="share-opt share-cancel" id="share-cancel">キャンセル</button>
   </div>
 </div>
 
@@ -697,6 +717,7 @@ document.getElementById('cur-bg').addEventListener('click',e=>{if(e.target.id===
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
   if(document.getElementById('cur-bg').style.display==='flex')closeCurrencyModal();
+  else if(document.getElementById('share-bg').style.display==='flex')document.getElementById('share-bg').style.display='none';
   else if(document.getElementById('create-bg').style.display==='flex')closeCreateModal();
 });
 document.getElementById('inp-ecur-btn').addEventListener('click',()=>openCurrencyModal('inp-ecur'));
@@ -1764,15 +1785,25 @@ function computeSettlements(){
   const {bal,total,ready,hasFallback,hasExcluded}=calcBalances();
   const settles=[];
   if(ready&&expenses.length){
-    let pos=members.filter(m=>bal[m.name]>0.5).map(m=>({n:m.name,a:bal[m.name]})).sort((a,b)=>b.a-a.a);
-    let neg=members.filter(m=>bal[m.name]<-0.5).map(m=>({n:m.name,a:-bal[m.name]})).sort((a,b)=>b.a-a.a);
+    // 精算単位（roundUnit=1/10/100/1000円）を実際の送金額へ反映する。
+    // 各人の収支を「単位の個数」に四捨五入し、丸め誤差で崩れた貸借合計を決定的な順序で調整してから
+    // 貪欲法でマッチングする。これにより全送金額が必ず単位で割り切れ、かつ貸し借りの総額も一致する。
+    const u=roundUnit>0?roundUnit:1;
+    const order=members.map(m=>m.name);
+    const units=order.map(n=>({n,u:Math.round((bal[n]||0)/u)}));
+    let resid=units.reduce((s,x)=>s+x.u,0);
+    // resid>0: 単位の総数が過剰 → 正で最大の人から1ずつ減らす（同値は登録順で決定的）
+    while(resid>0){let idx=0;for(let i=1;i<units.length;i++){if(units[i].u>units[idx].u)idx=i;}units[idx].u-=1;resid-=1;}
+    // resid<0: 単位の総数が不足 → 負で最大の人から1ずつ増やす（同値は登録順で決定的）
+    while(resid<0){let idx=0;for(let i=1;i<units.length;i++){if(units[i].u<units[idx].u)idx=i;}units[idx].u+=1;resid+=1;}
+    const pos=units.filter(x=>x.u>0).map(x=>({n:x.n,a:x.u})).sort((a,b)=>b.a-a.a||order.indexOf(a.n)-order.indexOf(b.n));
+    const neg=units.filter(x=>x.u<0).map(x=>({n:x.n,a:-x.u})).sort((a,b)=>b.a-a.a||order.indexOf(a.n)-order.indexOf(b.n));
     let pi=0,ni=0;
     while(pi<pos.length&&ni<neg.length){
       const amt=Math.min(pos[pi].a,neg[ni].a);
-      const r=rnd(amt,roundUnit);
-      if(r>0)settles.push({from:neg[ni].n,to:pos[pi].n,amt:r});
+      if(amt>0)settles.push({from:neg[ni].n,to:pos[pi].n,amt:amt*u});
       pos[pi].a-=amt;neg[ni].a-=amt;
-      if(pos[pi].a<0.5)pi++;if(neg[ni].a<0.5)ni++;
+      if(pos[pi].a===0)pi++;if(neg[ni].a===0)ni++;
     }
   }
   // 共有可能：為替がすべて揃い（ready）、支払いがあり、分け方の要確認（均等フォールバック・参加者0人除外）が無いこと
@@ -1790,7 +1821,14 @@ function buildSettleShareText(gname,settles,url){
   t+=`\n\n詳細はこちら\n${url}`;
   return t;
 }
-Object.assign(window,{computeSettlements,buildSettleShareText});
+// メール件名は必ず設定する（navigator.shareのtitleはiPhoneのメールで件名に反映されないため、メールはmailtoを使う）
+function buildSettleSubject(gname){return `OweSum「${gname}」の精算結果`;}
+// 本文はLINE・メール・コピーで完全に共通のbuildSettleShareText()。日本語・記号・絵文字を含むグループ名でも化けないようencodeURIComponentする
+function buildSettleMailto(gname,text){return `mailto:?subject=${encodeURIComponent(buildSettleSubject(gname))}&body=${encodeURIComponent(text)}`;}
+Object.assign(window,{computeSettlements,buildSettleShareText,buildSettleSubject,buildSettleMailto});
+// 検証用フック：精算計算はモジュール内の members/expenses/rates/roundUnit を参照するため、
+// テストから決まったデータを流し込んで computeSettlements/renderSettle を実行できるようにする（呼ばれた時だけ状態を書き換える副作用のない公開）。
+Object.assign(window,{__setSettleState:(m,e,r,u,gid)=>{members=m||[];expenses=e||[];rates=r||{};if(u!=null)roundUnit=u;if(gid!=null)GID=gid;},__getRoundUnit:()=>roundUnit,renderSettle});
 function renderSettle(){
   const tel=document.getElementById('s-total');
   const pel=document.getElementById('s-per');
@@ -1834,24 +1872,48 @@ function renderSettle(){
     </div>`;
   }).join('');
 }
-// 精算結果を共有する（スマホ=共有シート／非対応=クリップボード）。金額を確定できない状態では共有しない。
-document.getElementById('btn-share-settle').addEventListener('click',async()=>{
-  if(!GID){await ask('グループが選択されていません');return;}
-  const view=computeSettlements();
-  if(!view.canShare){toast('精算結果を確認してから共有してください','error');return;}
+// 精算結果を共有する。ボタンでアクションシート（LINEなどで共有／メールで送る／結果をコピー／キャンセル）を出し、
+// どの経路でも本文は必ず buildSettleShareText() を共通利用して画面表示と金額を完全一致させる。
+function currentSettleShareText(){
   const gname=document.getElementById('g-title').textContent;
   const url=buildInviteUrl(GID);
-  const text=buildSettleShareText(gname,view.settles,url);
-  const title=`OweSum「${gname}」の精算結果`;
+  return buildSettleShareText(gname,computeSettlements().settles,url);
+}
+function openShareSheet(){document.getElementById('share-bg').style.display='flex';}
+function closeShareSheet(){document.getElementById('share-bg').style.display='none';}
+document.getElementById('btn-share-settle').addEventListener('click',async()=>{
+  if(!GID){await ask('グループが選択されていません');return;}
+  // 金額を確定できない状態（為替不足・要確認）では誤った金額を共有しないため、シートを開かず案内する
+  if(!computeSettlements().canShare){toast('精算結果を確認してから共有してください','error');return;}
+  openShareSheet();
+});
+// LINEなどで共有：navigator.shareを使う。URLはtext本文に1つ含まれるため、url項目は渡さない（本文にURLが2回出るのを防ぐ）
+document.getElementById('share-line').addEventListener('click',async()=>{
+  closeShareSheet();
+  const gname=document.getElementById('g-title').textContent;
+  const text=currentSettleShareText();
   if(navigator.share){
-    // URLはurl項目だけでなくtext本文にも埋め込む（共有先アプリによってurl項目が本文へ反映されないため）
-    try{await navigator.share({title,text,url});}catch(err){/* キャンセル時は何も表示しない */}
+    try{await navigator.share({title:buildSettleSubject(gname),text});}catch(err){/* 共有キャンセル(AbortError)等は無視 */}
   }else{
+    // navigator.share非対応環境では共有文をクリップボードへコピー
     const ok=await copyTextToClipboard(text);
-    if(ok)toast('精算結果をコピーしました');
-    else toast('コピーできませんでした','error');
+    if(ok)toast('精算結果をコピーしました');else toast('コピーできませんでした','error');
   }
 });
+// メールで送る：件名を確実に入れるためmailto:を使う（navigator.shareのtitleはメール件名に反映されないことがある）
+document.getElementById('share-mail').addEventListener('click',()=>{
+  closeShareSheet();
+  const gname=document.getElementById('g-title').textContent;
+  location.href=buildSettleMailto(gname,currentSettleShareText());
+});
+// 結果をコピー：メール・LINEと同じ共有文をクリップボードへ
+document.getElementById('share-copy').addEventListener('click',async()=>{
+  closeShareSheet();
+  const ok=await copyTextToClipboard(currentSettleShareText());
+  if(ok)toast('精算結果をコピーしました');else toast('コピーできませんでした','error');
+});
+document.getElementById('share-cancel').addEventListener('click',closeShareSheet);
+document.getElementById('share-bg').addEventListener('click',e=>{if(e.target.id==='share-bg')closeShareSheet();});
 
 // 起動：?g=付きURL（招待リンク・ブックマーク・再読み込み）ならそのグループを直接開く
 async function boot(){
