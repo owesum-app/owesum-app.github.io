@@ -172,8 +172,8 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   .br-sp{display:none}
   .hero-groups-link{display:none}
   .hero{height:auto;min-height:100vh;min-height:100svh}
-  .hero::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,rgba(255,250,242,.72) 0%,rgba(255,250,242,.3) 28%,rgba(255,250,242,0) 46%)}
-  .hero-img{object-position:center}
+  .hero::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,#f9f4ef 0%,#f9f4ef 28%,rgba(249,244,239,0) 34%)}
+  .hero-img{object-position:100% 50%}
   .hero-inner{justify-content:center;min-height:100vh;min-height:100svh;margin:0;padding:0 24px 12vh 8%;max-width:none;width:100%;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;border-radius:0;box-shadow:none}
   .hero-inner>*{max-width:540px}
   .hero-logo{font-size:46px}
@@ -182,6 +182,9 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   .hero-desc{display:block;font-size:16px;margin-bottom:24px}
   .hero-note{display:block}
   .hero-btn{font-size:17px;padding:15px 34px;width:auto}
+}
+@media (min-aspect-ratio: 12/7) and (min-width: 768px){
+  .hero::before{background:linear-gradient(90deg,#f9f4ef 0%,#f9f4ef 35%,rgba(249,244,239,0) 42%)}
 }
 @media (prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
@@ -228,7 +231,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     </div>
     <div class="hero-media">
       <picture>
-        <source media="(min-width: 768px)" srcset="owesum-hero-desktop.webp?v=2">
+        <source media="(min-width: 768px)" srcset="owesum-hero-desktop.png?v=3">
         <img src="owesum-hero-mobile-20260723.png" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="hero-img" onerror="this.style.display='none';this.closest('.hero').classList.add('img-failed')">
       </picture>
     </div>

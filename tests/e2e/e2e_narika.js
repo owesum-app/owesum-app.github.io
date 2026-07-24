@@ -550,7 +550,7 @@ async function overlapInfo(p) {
     await pp.goto(BASE);
     await pp.waitForSelector('#btn-hero-create', { timeout: 15000 });
     await pp.waitForTimeout(2000);
-    check('PC幅でdesktop画像', (await pp.evaluate(() => document.querySelector('.hero-img').currentSrc)).includes('owesum-hero-desktop.webp'));
+    check('PC幅でdesktop画像', (await pp.evaluate(() => document.querySelector('.hero-img').currentSrc)).includes('owesum-hero-desktop.png'));
     check('PCでヒーローが画面全体を覆う', await pp.evaluate(() => document.querySelector('.hero').offsetHeight >= window.innerHeight - 1));
     const ppBtn = await pp.locator('#btn-hero-create').boundingBox();
     check('PCでボタンが初期画面内', ppBtn && ppBtn.y + ppBtn.height <= 800);
