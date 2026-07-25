@@ -291,7 +291,8 @@ function parseYen(text) { const m = [...text.matchAll(/([\d,]+)円/g)].map(x => 
     await page.click('#share-copy');
     await page.waitForTimeout(50);
     const cp = await page.evaluate((gn) => {
-      const url = window.buildInviteUrl('gid-xyz');
+      // 精算共有はtab=settle&ogv付きのbuildSettleShareUrl()を使う仕様（2026-07-25変更）
+      const url = window.buildSettleShareUrl('gid-xyz');
       const expected = window.buildSettleShareText(gn, window.computeSettlements().settles, url);
       const last = window.__copyCalls[window.__copyCalls.length - 1];
       const toast = document.querySelector('#toast-wrap .toast') ? document.querySelector('#toast-wrap .toast').textContent : '';

@@ -11,6 +11,7 @@
 <meta property="og:title" content="OweSum｜みんなの立替を、かんたん精算">
 <meta property="og:description" content="飲み会、旅行、イベントの立替をかんたん記録。誰が誰にいくら払えばよいかを自動計算します。">
 <meta property="og:image" content="https://narimatsumasato.github.io/narika/owesum-line-20260724.png">
+<meta property="og:image:secure_url" content="https://narimatsumasato.github.io/narika/owesum-line-20260724.png">
 <meta property="og:image:width" content="1731">
 <meta property="og:image:height" content="909">
 <meta property="og:image:type" content="image/png">
@@ -66,13 +67,16 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .split-sum{font-size:12px;color:#16a34a;font-weight:600}
 .split-sum.ng{color:#dc2626}
 .split-note{font-size:11px;color:#888;margin-top:4px;line-height:1.5}
-.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.stat{background:#fff;border-radius:12px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
-.stat-l{font-size:11px;color:#888;margin-bottom:3px}
-.stat-v{font-size:20px;font-weight:700}
 .round-row{display:flex;gap:6px;margin-top:6px}
 .rb{flex:1;padding:7px;font-size:12px;border:1.5px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer;color:#666;font-family:inherit;font-weight:500}
 .rb.on{background:#2563eb;color:#fff;border-color:#2563eb}
+.stbl{width:100%;border-collapse:collapse;font-size:13px}
+.stbl th{font-size:11px;color:#94a3b8;font-weight:600;text-align:right;padding:4px 2px;border-bottom:1px solid #e2e8f0;white-space:nowrap}
+.stbl th:first-child{text-align:left}
+.stbl td{padding:8px 2px;border-bottom:1px solid #f0f0f0;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.stbl td:first-child{text-align:left;white-space:normal;word-break:break-all;padding-right:6px}
+.stbl tr:last-child td{border-bottom:none}
+.stbl tfoot td{border-top:1.5px solid #cbd5e1;border-bottom:none;font-weight:700}
 .warn{background:#fef3c7;border:1px solid #fcd34d;border-radius:10px;padding:10px;font-size:12px;color:#92400e;margin-bottom:10px}
 .info{background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px;font-size:12px;color:#1e40af;margin-bottom:10px}
 /* 下部ナビ：不透明な白＋上に境界線と影で「操作できるバー」だと分かるようにする。未選択も濃いグレーで読みやすく、選択中は青の角丸背景＋白文字で一目で分かる */
@@ -325,6 +329,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 
     <!-- 為替 -->
     <div id="t-rates" class="tab" style="display:none">
+      <div style="font-size:24px;font-weight:800;text-align:center;letter-spacing:.08em;margin:2px 0 10px">海外旅行用</div>
       <div class="ptitle">為替レート</div>
       <div class="info">カードの請求が確定してからレートを入力してください。入力すると自動で円換算されます。</div>
       <div class="card" id="rate-list">支払いを記録すると表示されます</div>
@@ -333,25 +338,21 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     <!-- 精算 -->
     <div id="t-settle" class="tab" style="display:none">
       <div class="ptitle">精算</div>
-      <div class="stat-grid">
-        <div class="stat"><div class="stat-l">合計支出</div><div class="stat-v" id="s-total">—</div></div>
-        <div class="stat"><div class="stat-l">1人あたり</div><div class="stat-v" id="s-per">—</div></div>
-      </div>
-      <div class="card" style="padding:11px 13px;margin-bottom:10px">
-        <label>精算単位</label>
+      <div id="s-warn" class="warn" style="display:none">為替未入力の通貨があります。</div>
+      <div id="s-split-warn" class="warn" style="display:none"></div>
+      <div class="sec">個人別の精算内訳</div>
+      <div class="card" id="s-balance"></div>
+      <div class="sec" style="margin-top:12px">送金額</div>
+      <div class="card" id="s-result">為替レートを入力すると表示されます</div>
+      <div class="card" style="padding:11px 13px;margin-top:10px">
+        <label>送金単位</label>
         <div class="round-row">
           <button type="button" class="rb on" data-r="1">1円</button>
           <button type="button" class="rb" data-r="10">10円</button>
           <button type="button" class="rb" data-r="100">100円</button>
-          <button type="button" class="rb" data-r="1000">1,000円</button>
         </div>
+        <div id="round-note" style="font-size:12px;color:#94a3b8;margin-top:7px">1円単位で表示しています</div>
       </div>
-      <div id="s-warn" class="warn" style="display:none">為替未入力の通貨があります。</div>
-      <div id="s-split-warn" class="warn" style="display:none"></div>
-      <div class="sec">精算結果</div>
-      <div class="card" id="s-result">為替レートを入力すると表示されます</div>
-      <div class="sec" style="margin-top:12px">個人収支</div>
-      <div class="card" id="s-balance"></div>
       <button type="button" class="btn btn-share-settle" id="btn-share-settle"><i class="ti ti-share" style="font-size:18px;vertical-align:-3px;margin-right:5px"></i>精算結果をLINE・メールで共有</button>
     </div>
 
@@ -736,6 +737,14 @@ attachAmountInput(document.getElementById('ed-amt'));
 const groupNames={};
 // 招待URLは必ずこの関数を通す（コピー・共有シート・メールで完全に同一のURLにするため）
 function buildInviteUrl(id){return location.origin+location.pathname+'?g='+encodeURIComponent(id);}
+// 精算結果の共有URL：招待URLに tab=settle（開いた直後に精算タブを表示する指示）と
+// ogv（LINEのOGPキャッシュを避けるための無害なバージョン値。アプリ側は無視する）をURL APIで付与する
+function buildSettleShareUrl(id){
+  const u=new URL(buildInviteUrl(id));
+  u.searchParams.set('tab','settle');
+  u.searchParams.set('ogv','20260725-1');
+  return u.toString();
+}
 function buildInviteSubject(gname){return gname?`OweSum「${gname}」への招待`:'OweSumへの招待';}
 function buildInviteMessage(gname,url){return `「${gname}」に招待されました。\nOweSumで一緒に精算しましょう。\n\n${url}`;}
 function buildInviteMailto(gname,url){
@@ -744,7 +753,7 @@ function buildInviteMailto(gname,url){
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
 // type="module"はトップレベル宣言をwindowへ公開しないため、テスト・検証用に明示公開する（副作用のない純関数のみ）
-Object.assign(window,{buildInviteUrl,buildInviteSubject,buildInviteMessage,buildInviteMailto});
+Object.assign(window,{buildInviteUrl,buildSettleShareUrl,buildInviteSubject,buildInviteMessage,buildInviteMailto});
 function setUrlForGroup(id,mode){
   if(mode==='none')return;
   const target=location.pathname+'?g='+encodeURIComponent(id);
@@ -808,6 +817,10 @@ function showPage(id){
 }
 
 // タブ切替
+// 共有URL（?tab=settle）で開いたときだけ、グループのデータ読込完了後に精算タブへ切り替えるためのフラグ。
+// enterGroup後のloadAll完了時に一度だけ消費する（通常URLの初期タブ＝メンバーは変えない）
+let pendingSettleTab=false;
+function selectTab(tab){const b=document.querySelector(`.nb[data-tab="${tab}"]`);if(b)b.click();}
 document.querySelectorAll('.nb').forEach(btn=>{
   btn.addEventListener('click',()=>{
     const tab=btn.dataset.tab;
@@ -1031,7 +1044,11 @@ function enterGroup(id,name,urlMode){
   document.getElementById('t-members').style.display='block';
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('on'));
   document.querySelector('.nb[data-tab="members"]').classList.add('on');
-  loadAll();
+  // 精算共有URL（?tab=settle）から開いた場合のみ、データ読込完了後に精算タブへ切り替える
+  // （読込前に切り替えない：上でメンバータブへ初期化した後に一度だけ実行するため、後から戻されない）
+  loadAll().then(()=>{
+    if(pendingSettleTab){pendingSettleTab=false;selectTab('settle');}
+  });
   startSubs();
 }
 
@@ -1039,6 +1056,7 @@ function enterGroup(id,name,urlMode){
 function showGroupList(urlMode){
   stopSubs();
   GID=null;
+  pendingSettleTab=false;
   document.getElementById('main-nav').style.display='none';
   setUrlForList(urlMode||'push');
   showPage('p-group');
@@ -1155,7 +1173,9 @@ function sortedSplitDetails(e){
   return e.split_details.slice().sort((a,b)=>order.indexOf(a.member)-order.indexOf(b.member));
 }
 function calcBalances(){
-  const bal={};members.forEach(m=>bal[m.name]=0);
+  // bal=立替(paid)−負担(owed)の純収支。paid/owedは「個人別の精算内訳」表示用の内訳（送金単位の丸めを受けない正確な値）
+  const bal={},paid={},owed={};
+  members.forEach(m=>{bal[m.name]=0;paid[m.name]=0;owed[m.name]=0;});
   let total=0,ready=true,hasFallback=false,hasExcluded=false;
   expenses.forEach(e=>{
     const r=rate(e.currency);
@@ -1166,10 +1186,15 @@ function calcBalances(){
     const f=minorFactor(e.currency);
     const j=res.totalMinor/f*r;
     bal[e.payer]=(bal[e.payer]||0)+j;
-    res.allocations.forEach(a=>{bal[a.member]=(bal[a.member]||0)-a.amountMinor/f*r;});
+    paid[e.payer]=(paid[e.payer]||0)+j;
+    res.allocations.forEach(a=>{
+      const aj=a.amountMinor/f*r;
+      bal[a.member]=(bal[a.member]||0)-aj;
+      owed[a.member]=(owed[a.member]||0)+aj;
+    });
     total+=j;
   });
-  return {bal,total,ready,hasFallback,hasExcluded};
+  return {bal,paid,owed,total,ready,hasFallback,hasExcluded};
 }
 
 // ===== バックアップ =====
@@ -1788,33 +1813,33 @@ function renderRates(){
 // canShare=false のときは、為替不足・分け方の要確認・計算不能などで金額を確定できないため共有しない。
 function computeSettlements(){
   const missing=[...new Set(expenses.map(e=>e.currency).filter(c=>rate(c)===null))];
-  const {bal,total,ready,hasFallback,hasExcluded}=calcBalances();
+  const {bal,paid,owed,total,ready,hasFallback,hasExcluded}=calcBalances();
   const settles=[];
   if(ready&&expenses.length){
-    // 精算単位（roundUnit=1/10/100/1000円）を実際の送金額へ反映する。
-    // 各人の収支を「単位の個数」に四捨五入し、丸め誤差で崩れた貸借合計を決定的な順序で調整してから
-    // 貪欲法でマッチングする。これにより全送金額が必ず単位で割り切れ、かつ貸し借りの総額も一致する。
-    const u=roundUnit>0?roundUnit:1;
+    // 送金単位（roundUnit=1/10/100円）。未対応の値（旧1,000円等）は1円へフォールバック
+    const u=(roundUnit===10||roundUnit===100)?roundUnit:1;
+    // まず四捨五入前の正確な収支で貪欲法マッチングして正確な送金額を求め、
+    // 各送金行ごとに独立して選択単位で四捨五入する（送金合計を合わせるための切り下げ調整はしない）。
+    // 四捨五入で0円になった送金行は表示しない。
+    // EPS: 外貨換算の浮動小数点誤差を貸し借りとして扱わないためのしきい値
+    const EPS=0.005;
     const order=members.map(m=>m.name);
-    const units=order.map(n=>({n,u:Math.round((bal[n]||0)/u)}));
-    let resid=units.reduce((s,x)=>s+x.u,0);
-    // resid>0: 単位の総数が過剰 → 正で最大の人から1ずつ減らす（同値は登録順で決定的）
-    while(resid>0){let idx=0;for(let i=1;i<units.length;i++){if(units[i].u>units[idx].u)idx=i;}units[idx].u-=1;resid-=1;}
-    // resid<0: 単位の総数が不足 → 負で最大の人から1ずつ増やす（同値は登録順で決定的）
-    while(resid<0){let idx=0;for(let i=1;i<units.length;i++){if(units[i].u<units[idx].u)idx=i;}units[idx].u+=1;resid+=1;}
-    const pos=units.filter(x=>x.u>0).map(x=>({n:x.n,a:x.u})).sort((a,b)=>b.a-a.a||order.indexOf(a.n)-order.indexOf(b.n));
-    const neg=units.filter(x=>x.u<0).map(x=>({n:x.n,a:-x.u})).sort((a,b)=>b.a-a.a||order.indexOf(a.n)-order.indexOf(b.n));
+    const pos=[],neg=[];
+    order.forEach(n=>{const b=bal[n]||0;if(b>EPS)pos.push({n,a:b});else if(b<-EPS)neg.push({n,a:-b});});
+    pos.sort((a,b)=>b.a-a.a||order.indexOf(a.n)-order.indexOf(b.n));
+    neg.sort((a,b)=>b.a-a.a||order.indexOf(a.n)-order.indexOf(b.n));
     let pi=0,ni=0;
     while(pi<pos.length&&ni<neg.length){
-      const amt=Math.min(pos[pi].a,neg[ni].a);
-      if(amt>0)settles.push({from:neg[ni].n,to:pos[pi].n,amt:amt*u});
-      pos[pi].a-=amt;neg[ni].a-=amt;
-      if(pos[pi].a===0)pi++;if(neg[ni].a===0)ni++;
+      const ex=Math.min(pos[pi].a,neg[ni].a);
+      const amt=rnd(ex,u);
+      if(amt>0)settles.push({from:neg[ni].n,to:pos[pi].n,amt});
+      pos[pi].a-=ex;neg[ni].a-=ex;
+      if(pos[pi].a<=EPS)pi++;if(neg[ni].a<=EPS)ni++;
     }
   }
   // 共有可能：為替がすべて揃い（ready）、支払いがあり、分け方の要確認（均等フォールバック・参加者0人除外）が無いこと
   const canShare=ready&&expenses.length>0&&!missing.length&&!hasFallback&&!hasExcluded;
-  return {missing,bal,total,ready,hasFallback,hasExcluded,settles,canShare};
+  return {missing,bal,paid,owed,total,ready,hasFallback,hasExcluded,settles,canShare};
 }
 // 精算結果の共有テキスト。結論（各送金額 or 精算なし）を先頭に置き、最後に「詳細はこちら」＋グループURLを1つだけ付ける。
 function buildSettleShareText(gname,settles,url){
@@ -1836,13 +1861,16 @@ Object.assign(window,{computeSettlements,buildSettleShareText,buildSettleSubject
 // テストから決まったデータを流し込んで computeSettlements/renderSettle を実行できるようにする（呼ばれた時だけ状態を書き換える副作用のない公開）。
 Object.assign(window,{__setSettleState:(m,e,r,u,gid)=>{members=m||[];expenses=e||[];rates=r||{};if(u!=null)roundUnit=u;if(gid!=null)GID=gid;},__getRoundUnit:()=>roundUnit,renderSettle});
 function renderSettle(){
-  const tel=document.getElementById('s-total');
-  const pel=document.getElementById('s-per');
   const rel=document.getElementById('s-result');
   const bel=document.getElementById('s-balance');
   const wel=document.getElementById('s-warn');
-  if(!tel)return;
-  const {missing,bal,total,ready,hasFallback,hasExcluded,settles}=computeSettlements();
+  if(!rel||!bel||!wel)return;
+  // 送金単位は1円/10円/100円のみ。未対応の値（旧1,000円等の保存値・外部入力）は1円へフォールバック
+  if(roundUnit!==1&&roundUnit!==10&&roundUnit!==100)roundUnit=1;
+  document.querySelectorAll('.rb').forEach(b=>b.classList.toggle('on',parseInt(b.dataset.r)===roundUnit));
+  const nel=document.getElementById('round-note');
+  if(nel)nel.textContent=roundUnit===1?'1円単位で表示しています':`${roundUnit}円単位で四捨五入しています`;
+  const {missing,bal,paid,owed,ready,hasFallback,hasExcluded,settles}=computeSettlements();
   wel.style.display=missing.length?'block':'none';
   const swel=document.getElementById('s-split-warn');
   if(swel){
@@ -1853,36 +1881,29 @@ function renderSettle(){
     swel.style.display=warns.length?'block':'none';
   }
   if(!ready||!expenses.length){
-    tel.textContent='— 円';pel.textContent='— 円';
     rel.innerHTML='<div style="color:#aaa;font-size:13px">為替レートを入力すると表示されます</div>';
     bel.innerHTML='';return;
   }
-  tel.textContent=Math.round(total).toLocaleString()+'円';
-  pel.textContent=Math.round(total/Math.max(members.length,1)).toLocaleString()+'円';
-  bel.innerHTML=members.map(m=>{
-    const b=bal[m.name]||0;
-    const col=b>0?'#16a34a':b<0?'#dc2626':'#aaa';
-    const lbl=b>0?`+${Math.round(b).toLocaleString()}円 もらう`:b<0?`${Math.round(b).toLocaleString()}円 払う`:'イーブン';
-    return `<div class="item" style="display:flex;align-items:center;justify-content:space-between">
-      <span style="font-size:14px">${m.name}</span>
-      <span style="font-size:14px;font-weight:600;color:${col}">${lbl}</span>
-    </div>`;
-  }).join('');
+  // 個人別の精算内訳：送金単位の丸めを受けない正確な値（表示のみ既存ルール通り円へ四捨五入）
+  // 合計行は丸め前のpaid/owedを合計してから円へ四捨五入する（total＝Σpaidなので総支出額と厳密に一致する）
+  const sumPaid=Math.round(members.reduce((s,m)=>s+(paid[m.name]||0),0));
+  const sumOwed=Math.round(members.reduce((s,m)=>s+(owed[m.name]||0),0));
+  bel.innerHTML=`<table class="stbl"><thead><tr><th>参加者</th><th>立替</th><th>負担</th><th>差引</th></tr></thead><tbody>${members.map(m=>{
+    const p=Math.round(paid[m.name]||0),o=Math.round(owed[m.name]||0),d=Math.round(bal[m.name]||0);
+    const col=d>0?'#16a34a':d<0?'#dc2626':'#94a3b8';
+    const ds=d>0?`+${d.toLocaleString()}`:d.toLocaleString();
+    return `<tr><td>${m.name}</td><td>${p.toLocaleString()}円</td><td>${o.toLocaleString()}円</td><td style="color:${col};font-weight:600">${ds}円</td></tr>`;
+  }).join('')}</tbody><tfoot><tr><td>合計</td><td>${sumPaid.toLocaleString()}円</td><td>${sumOwed.toLocaleString()}円</td><td></td></tr></tfoot></table>`;
   if(!settles.length){rel.innerHTML='<div style="color:#16a34a;font-weight:600;font-size:14px">全員イーブン！精算不要</div>';return;}
-  rel.innerHTML=settles.map(s=>{
-    return `<div style="display:flex;align-items:center;gap:7px;padding:9px 0;border-bottom:1px solid #f0f0f0">
-      <span style="font-size:13px;color:#666;flex:1;min-width:0">${s.from}</span>
-      <i class="ti ti-arrow-right" style="font-size:15px;color:#ccc;flex:none"></i>
-      <span style="font-size:13px;color:#666">${s.to}</span>
-      <span style="font-size:16px;font-weight:700;margin-left:auto;flex:none">${s.amt.toLocaleString()}円</span>
-    </div>`;
-  }).join('');
+  rel.innerHTML=`<table class="stbl"><thead><tr><th>送金</th><th>金額</th></tr></thead><tbody>${settles.map(s=>
+    `<tr><td>${s.from} → ${s.to}</td><td style="font-size:15px;font-weight:700">${s.amt.toLocaleString()}円</td></tr>`
+  ).join('')}</tbody></table>`;
 }
 // 精算結果を共有する。ボタンでアクションシート（LINEなどで共有／メールで送る／結果をコピー／キャンセル）を出し、
 // どの経路でも本文は必ず buildSettleShareText() を共通利用して画面表示と金額を完全一致させる。
 function currentSettleShareText(){
   const gname=document.getElementById('g-title').textContent;
-  const url=buildInviteUrl(GID);
+  const url=buildSettleShareUrl(GID);
   return buildSettleShareText(gname,computeSettlements().settles,url);
 }
 function openShareSheet(){document.getElementById('share-bg').style.display='flex';}
@@ -1926,6 +1947,8 @@ async function boot(){
   debugLog('boot開始');
   const params=new URLSearchParams(location.search);
   const gid=params.get('g');
+  // 精算共有URLのときだけ精算タブを初期表示する（ogvはOGPキャッシュ用のためアプリでは無視）
+  pendingSettleTab=(gid!=null&&params.get('tab')==='settle');
   if(gid){
     try{
       debugLog('グループURL確認',{gid});
@@ -1947,6 +1970,7 @@ async function boot(){
       }
       await ask('リンクのグループが見つかりませんでした。\n削除されたか、リンクが正しくない可能性があります。');
     }catch(err){debugLog('グループURL処理例外',{message:err.message,stack:err.stack});}
+    pendingSettleTab=false;
     history.replaceState({g:null},'',location.pathname);
   }
   await loadGroups();
