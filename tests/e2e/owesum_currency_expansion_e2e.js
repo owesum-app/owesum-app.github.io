@@ -6,6 +6,8 @@
 //  D. 為替：追加通貨のレート入力→全期間再計算、未知コードでもクラッシュしない、小数桁
 //  E. JSONバックアップ復元（旧v1・v2形式）
 //  F. レイアウト（390x844 / 1280x800）・コンソールエラー
+//  G. 旧通貨BGN・HRK：新規選択の禁止（主要・その他・検索・最近から除外）と
+//     既存データ互換（表示・編集再保存・為替・精算・JSON復元）の両立
 // 安全対策：Supabase RESTはPlaywrightのルート横取りでローカルの偽DBに完結させ、
 // 想定外のリクエストは遮断して記録する。realtimeはWebSocketスタブで接続自体を発生させない。
 const http = require('http');
@@ -40,7 +42,7 @@ const MEMBERS = [
   { id: 3, group_id: GID, name: 'はなこ', created_at: '2026-07-26T00:00:03Z' },
 ];
 
-// ローカル完結の偽Supabase REST。GET/POSTのみ許可し、状態はメモリ上のstateに保持。
+// ローカル完結の偽Supabase REST。GET/POST/PATCH（編集保存）のみ許可し、状態はメモリ上のstateに保持。
 // それ以外のメソッド・想定外テーブルはviolationsに記録して遮断する。
 function makeDb(initial) {
   const state = Object.assign({ groups: [{ id: GID, name: GNAME }], members: [], expenses: [], rates: [] }, initial || {});
@@ -68,6 +70,13 @@ function makeDb(initial) {
       const accept = (req.headers()['accept'] || '');
       const out = accept.includes('pgrst.object') ? JSON.stringify(inserted[0]) : JSON.stringify(inserted);
       return route.fulfill({ status: 201, contentType: 'application/json', body: out });
+    }
+    if (method === 'PATCH') {
+      const body = JSON.parse(req.postData() || '{}');
+      let rows = state[table];
+      for (const [k, v] of url.searchParams) { const m = /^eq\.(.*)$/.exec(v); if (m) rows = rows.filter(r => String(r[k]) === m[1]); }
+      rows.forEach(r => Object.assign(r, body));
+      return route.fulfill({ status: 204, body: '' });
     }
     violations.push(method + ' ' + url.pathname);
     return route.fulfill({ status: 403, contentType: 'application/json', body: '{"message":"blocked by e2e"}' });
@@ -161,6 +170,10 @@ async function acceptModal(page, includes) {
     const existing22 = 'JPY THB KRW USD EUR GBP CNY HKD TWD SGD AUD CAD RSD HRK BAM MKD ALL BGN RON HUF MDL UAH'.split(' ');
     const missing22 = existing22.filter(c => !a.codes.includes(c));
     ok('[A] 既存22通貨がすべて維持されている', missing22.length === 0, missing22.join(','));
+    // 旧通貨フラグ：BGN・HRKのみlegacy:true。データ辞書には残す（互換）が新規選択からは除外される
+    const legacy = await page.evaluate(() => window.CURR.filter(c => c.legacy).map(c => c.code).sort());
+    ok('[A/G] legacy:trueはBGN・HRKのみ', legacy.join(',') === 'BGN,HRK', legacy.join(','));
+    ok('[A/G] 主要通貨（よく使われる通貨）にBGN・HRKがない', !a.common.includes('BGN') && !a.common.includes('HRK'), a.common.join(','));
     ok('[A] 主要通貨の先頭12件が従来の並びのまま', a.common.slice(0, 12).join(',') === 'JPY,USD,EUR,GBP,CNY,HKD,KRW,TWD,SGD,THB,AUD,CAD', a.common.slice(0, 12).join(','));
     ok('[A] 主要通貨がすべて標準通貨に存在', a.commonAllExist);
     ok('[A] 旅行精算で使わないコードが除外されている', ['XAU', 'XAG', 'XPD', 'XPT', 'XXX', 'XTS', 'XDR', 'CLF', 'CHE', 'USN'].every(c => !a.codes.includes(c)));
@@ -190,14 +203,20 @@ async function acceptModal(page, includes) {
     ok('[C] 初期表示は最近＋主要のみで全通貨を展開しない', init.shown <= 30, String(init.shown));
     ok('[C] その他の通貨の展開ボタンがある（件数表示付き）', !!init.more && /その他の通貨をすべて表示（\d+通貨）/.test(init.more), String(init.more));
 
-    // 展開すると全通貨が表示され、既存22通貨も選べる
+    // 展開すると現行通貨がすべて表示され、既存の現行20通貨も選べる。
+    // 旧通貨BGN・HRKは互換表示のみ（既存データの表示・計算用）で、新規選択候補には出ない
     await page.click('#cur-more');
     const expanded = await page.evaluate(() => {
       const codes = [...document.querySelectorAll('#cur-list .cur-item')].map(b => b.dataset.cur);
-      return { total: new Set(codes).size, has22: 'JPY THB KRW USD EUR GBP CNY HKD TWD SGD AUD CAD RSD HRK BAM MKD ALL BGN RON HUF MDL UAH'.split(' ').every(c => codes.includes(c)) };
+      return {
+        total: new Set(codes).size,
+        has20: 'JPY THB KRW USD EUR GBP CNY HKD TWD SGD AUD CAD RSD BAM MKD ALL RON HUF MDL UAH'.split(' ').every(c => codes.includes(c)),
+        legacyShown: codes.filter(c => c === 'BGN' || c === 'HRK'),
+      };
     });
-    ok('[C] 展開後に全標準通貨が表示される', expanded.total >= 150, String(expanded.total));
-    ok('[C] 展開後の一覧に既存22通貨がすべて含まれる', expanded.has22);
+    ok('[C] 展開後に全現行通貨が表示される', expanded.total >= 150, String(expanded.total));
+    ok('[C] 展開後の一覧に既存の現行20通貨がすべて含まれる', expanded.has20);
+    ok('[C/G] 展開後の一覧に旧通貨BGN・HRKが出ない', expanded.legacyShown.length === 0, expanded.legacyShown.join(','));
     const noOverflow1 = await page.evaluate(() => ({ doc: document.documentElement.scrollWidth <= window.innerWidth + 1, list: document.getElementById('cur-list').scrollWidth <= document.getElementById('cur-list').clientWidth + 1 }));
     ok('[C] 展開後も横はみ出しなし（390px）', noOverflow1.doc && noOverflow1.list, JSON.stringify(noOverflow1));
     await page.screenshot({ path: path.join(SHOT, 'currency-modal-expanded-390.png') });
@@ -420,6 +439,142 @@ async function acceptModal(page, includes) {
     await page.screenshot({ path: path.join(SHOT, 'currency-search-pc-1280.png') });
     const errsF = await jsErrors(page);
     ok('[F] PC表示フローでJSエラーなし', errsF.length === 0, errsF.join('||'));
+    await ctx.close();
+  }
+
+  // ---------- G. 旧通貨BGN・HRK：新規選択の禁止と既存データ互換 ----------
+  {
+    const { ctx, page, db } = await newCtx(browser, { width: 390, height: 844 }, {
+      recent: ['HRK', 'BGN', 'BRL'],
+      db: {
+        members: MEMBERS.slice(),
+        expenses: [
+          { id: 31, group_id: GID, name: 'ザグレブ夕食', date: '2022-10-01', amount: 200, currency: 'HRK', payer: 'まさと', beneficiaries: 'まさと,たろう', split_mode: 'equal', split_details: null, created_at: '2022-10-01T00:00:00Z' },
+          { id: 32, group_id: GID, name: 'ソフィア土産', date: '2025-05-01', amount: 50, currency: 'BGN', payer: 'たろう', beneficiaries: 'まさと,たろう', split_mode: 'equal', split_details: null, created_at: '2025-05-01T00:00:00Z' },
+        ],
+        rates: [
+          { id: 41, group_id: GID, currency: 'HRK', rate: 20 },
+          { id: 42, group_id: GID, currency: 'BGN', rate: 80 },
+        ],
+      },
+    });
+    await openExpensesTab(page, BASE);
+    await page.waitForFunction(() => document.getElementById('exp-list').textContent.includes('HRK'), { timeout: 10000 });
+    const disp = await page.evaluate(() => document.getElementById('exp-list').textContent);
+    ok('[G] 既存HRK支払いが表示される', disp.includes('ザグレブ夕食') && disp.includes('HRK'), disp.slice(0, 120));
+    ok('[G] 既存BGN支払いが表示される', disp.includes('ソフィア土産') && disp.includes('BGN'), disp.slice(0, 120));
+    ok('[G] 既存レートで円換算される（HRK200×20/BGN50×80=各4,000円）', (disp.match(/4,000円/g) || []).length >= 2, disp.slice(0, 200));
+    const settle0 = await page.evaluate(() => { const s = window.computeSettlements(); return { ready: s.ready, total: Math.round(s.total) }; });
+    ok('[G] 旧通貨込みの精算が計算できる（合計8,000円）', settle0.ready && settle0.total === 8000, JSON.stringify(settle0));
+
+    // 選択モーダル：最近使った通貨に保存されていても旧通貨は候補に出さない（保存値は温存）
+    await page.click('#inp-ecur-btn');
+    await page.waitForSelector('#cur-bg', { state: 'visible' });
+    const secItems = await page.evaluate(() => {
+      const out = {}; let sec = '';
+      [...document.querySelectorAll('#cur-list .cur-sec, #cur-list .cur-item')].forEach(el => {
+        if (el.classList.contains('cur-sec')) { sec = el.textContent.trim(); out[sec] = []; }
+        else out[sec].push(el.dataset.cur);
+      });
+      return out;
+    });
+    const recentShown = secItems['最近使った通貨'] || [];
+    ok('[G] 最近使った通貨からBGN・HRKが除外される', !recentShown.includes('BGN') && !recentShown.includes('HRK'), recentShown.join(','));
+    ok('[G] 最近使った通貨の現行通貨（BRL）は表示される', recentShown.includes('BRL'), recentShown.join(','));
+    const storedRecent = await page.evaluate(() => JSON.parse(localStorage.getItem('narika_recent_curr') || '[]'));
+    ok('[G] localStorageの保存値は書き換えられていない', storedRecent.join(',') === 'HRK,BGN,BRL', storedRecent.join(','));
+    const commonShown = secItems['よく使われる通貨'] || [];
+    ok('[G] よく使われる通貨にBGN・HRKがない', !commonShown.includes('BGN') && !commonShown.includes('HRK'));
+    await page.click('#cur-more');
+    const allShown = await page.evaluate(() => [...document.querySelectorAll('#cur-list .cur-item')].map(b => b.dataset.cur));
+    ok('[G] その他の通貨（展開後）にBGN・HRKがない', !allShown.includes('BGN') && !allShown.includes('HRK'), String(allShown.length));
+    await page.screenshot({ path: path.join(SHOT, 'currency-modal-no-legacy-390.png') });
+
+    // 検索：旧通貨は出さず、ユーロ移行国は現行通貨EURへ誘導される
+    for (const [q, expectEUR] of [['BGN', false], ['HRK', false], ['レフ', false], ['クーナ', false], ['ブルガリア', true], ['クロアチア', true]]) {
+      await page.fill('#cur-search', q);
+      const r = await page.evaluate(() => [...document.querySelectorAll('#cur-list .cur-item')].map(b => b.dataset.cur));
+      ok(`[G] 検索「${q}」にBGN・HRKが出ない`, !r.includes('BGN') && !r.includes('HRK'), r.join(','));
+      if (expectEUR) ok(`[G] 検索「${q}」でEURが表示される`, r.includes('EUR'), r.join(','));
+    }
+    // 選択ボタン自体が存在しないため、BGN・HRKでの新規支払い登録はUIから不可能
+    const legacyButtons = await page.evaluate(() => document.querySelectorAll('#cur-list [data-cur="BGN"],#cur-list [data-cur="HRK"]').length);
+    ok('[G] BGN・HRKの選択ボタンが存在せず新規登録できない', legacyButtons === 0, String(legacyButtons));
+    await page.click('#cur-close');
+
+    // 為替タブ：既存旧通貨レートの表示・変更は従来どおり（BGN 80→75で全期間再計算）
+    await page.click('.nb[data-tab="rates"]');
+    await page.waitForSelector('#rate-list [data-rc="BGN"]');
+    ok('[G] 為替タブに既存BGN・HRK行が表示される', await page.evaluate(() => !!document.querySelector('#rate-list [data-rc="BGN"]') && !!document.querySelector('#rate-list [data-rc="HRK"]')));
+    ok('[G] 為替タブで旧通貨の日本語名が解決される', await page.evaluate(() => document.getElementById('rate-list').textContent.includes('ブルガリア レフ') && document.getElementById('rate-list').textContent.includes('クロアチア クーナ')));
+    await page.fill('#rate-list [data-rc="BGN"]', '75');
+    await page.dispatchEvent('#rate-list [data-rc="BGN"]', 'change');
+    await page.waitForFunction(() => document.getElementById('exp-list').textContent.includes('3,750円'), { timeout: 10000 });
+    ok('[G] 旧通貨レート変更で再計算される（BGN50×75=3,750円）', true);
+
+    // 既存BGN支払いの編集：通貨を変更せず内容・金額のみ編集→保存後もcurrency=BGN
+    await page.click('.nb[data-tab="expenses"]');
+    await page.click('[data-edit="32"]');
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('edit-bg')).display !== 'none');
+    ok('[G] 編集画面で既存BGNの通貨表示が解決される', (await page.textContent('#ed-cur-label')).includes('BGN'), await page.textContent('#ed-cur-label'));
+    await page.fill('#ed-name', 'ソフィア土産改');
+    await page.fill('#ed-amt', '60');
+    await page.click('#ed-save');
+    await page.waitForFunction(() => document.getElementById('exp-list').textContent.includes('ソフィア土産改'), { timeout: 10000 });
+    const savedBgn = db.state.expenses.find(e => String(e.id) === '32');
+    ok('[G] BGN編集保存後もcurrency=BGNを維持', savedBgn && savedBgn.currency === 'BGN' && savedBgn.amount === 60 && savedBgn.name === 'ソフィア土産改', JSON.stringify(savedBgn));
+    ok('[G] 編集後の一覧が新レートで換算される（60×75=4,500円）', await page.evaluate(() => document.getElementById('exp-list').textContent.includes('4,500円')));
+    // 既存HRK支払いの編集：内容のみ変更→保存後もcurrency=HRK
+    await page.click('[data-edit="31"]');
+    await page.waitForFunction(() => getComputedStyle(document.getElementById('edit-bg')).display !== 'none');
+    await page.fill('#ed-name', 'ザグレブ夕食改');
+    await page.click('#ed-save');
+    await page.waitForFunction(() => document.getElementById('exp-list').textContent.includes('ザグレブ夕食改'), { timeout: 10000 });
+    const savedHrk = db.state.expenses.find(e => String(e.id) === '31');
+    ok('[G] HRK編集保存後もcurrency=HRKを維持', savedHrk && savedHrk.currency === 'HRK' && savedHrk.amount === 200, JSON.stringify(savedHrk));
+    // 編集保存でpushRecentCurr('HRK')が走っても、選択候補には旧通貨が出ない
+    await page.click('#inp-ecur-btn');
+    await page.waitForSelector('#cur-bg', { state: 'visible' });
+    const recentAfter = await page.evaluate(() => {
+      const first = document.querySelector('#cur-list .cur-item');
+      return { firstCode: first ? first.dataset.cur : null, stored: JSON.parse(localStorage.getItem('narika_recent_curr') || '[]') };
+    });
+    ok('[G] 編集後も最近使った通貨の表示に旧通貨が出ない', recentAfter.firstCode !== 'HRK' && recentAfter.firstCode !== 'BGN', JSON.stringify(recentAfter));
+    ok('[G] 編集による最近使った通貨の保存自体は従来どおり動く', recentAfter.stored.includes('HRK'), recentAfter.stored.join(','));
+    await page.keyboard.press('Escape');
+    const errsG = await jsErrors(page);
+    ok('[G] 旧通貨フローでJSエラーなし', errsG.length === 0, errsG.join('||'));
+    ok('[G] 旧通貨フローで想定外のSupabase通信なし', db.violations.length === 0, db.violations.join('||'));
+    await ctx.close();
+  }
+  {
+    // 旧通貨入りJSONバックアップ（v1）の復元互換
+    const { ctx, page, db } = await newCtx(browser, { width: 390, height: 844 });
+    await page.goto(BASE, { waitUntil: 'load' });
+    await page.waitForFunction(() => typeof window.computeSettlements === 'function', { timeout: 15000 });
+    const legacyBackup = {
+      app: 'narika', group_name: '旧通貨グループ',
+      members: [{ name: 'A' }, { name: 'B' }],
+      expenses: [
+        { name: 'クロアチア宿', date: '2022-10-01', amount: 100, currency: 'HRK', payer: 'A', beneficiaries: 'A,B' },
+        { name: 'ブルガリア飯', date: '2025-05-01', amount: 20, currency: 'BGN', payer: 'B', beneficiaries: 'A,B' },
+      ],
+      rates: { HRK: 20, BGN: 80 },
+    };
+    await page.setInputFiles('#restore-file', { name: 'legacy-backup.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(legacyBackup), 'utf8') });
+    await acceptModal(page, '復元します');
+    await acceptModal(page, '復元しました');
+    await page.waitForFunction(() => document.getElementById('g-title').textContent === '旧通貨グループ', { timeout: 15000 });
+    await page.click('.nb[data-tab="expenses"]');
+    await page.waitForFunction(() => document.getElementById('exp-list').textContent.includes('HRK'), { timeout: 10000 });
+    const lr = await page.evaluate(() => document.getElementById('exp-list').textContent);
+    ok('[G] BGN・HRK入りJSONを復元できる', lr.includes('クロアチア宿') && lr.includes('ブルガリア飯'), lr.slice(0, 120));
+    ok('[G] 復元した旧通貨レートが適用される（HRK100×20=2,000円/BGN20×80=1,600円）', lr.includes('2,000円') && lr.includes('1,600円'), lr.slice(0, 200));
+    const ls = await page.evaluate(() => { const s = window.computeSettlements(); return { ready: s.ready, total: Math.round(s.total) }; });
+    ok('[G] 復元後の旧通貨精算が計算できる（合計3,600円）', ls.ready && ls.total === 3600, JSON.stringify(ls));
+    ok('[G] 旧通貨復元で想定外のSupabase通信なし', db.violations.length === 0, db.violations.join('||'));
+    const errsG2 = await jsErrors(page);
+    ok('[G] 旧通貨復元フローでJSエラーなし', errsG2.length === 0, errsG2.join('||'));
     await ctx.close();
   }
 

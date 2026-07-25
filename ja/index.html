@@ -540,8 +540,11 @@ function askInput(message,placeholder){
 //   会計単位・特殊単位（XDR/XUA/XSU/XAD/XBA/XBB/XBC/XBD/UYW）。
 // 互換維持：HRK（クロアチア、2023年ユーロ移行）とBGN（ブルガリア、2026年ユーロ移行）は
 //   現行List One非掲載だが、既存グループのデータ互換のため従来どおり収録を継続する（計157件）。
+//   ただしlegacy:trueを付与し、新規支払いの選択候補（最近使った・よく使われる・その他・検索結果）
+//   からは一律除外する。既存支払いの表示・編集・為替・精算・バックアップ復元では従来どおり解決される。
 // フィールド：code=ISOコード、flag=国旗絵文字、name=日本語名、en=英語名（List One準拠）、
-//   sym=通貨記号（任意）、country=国・地域名（検索用）、kw=検索用の別名・追加地域（任意）。
+//   sym=通貨記号（任意）、country=国・地域名（検索用）、kw=検索用の別名・追加地域（任意）、
+//   legacy=旧通貨フラグ（任意。trueなら新規選択不可、既存データの表示・計算の互換のみ）。
 //   country/kw/sym/en/name/codeはすべて検索対象。同一通貨は重複登録せず、多国利用はcountry/kwへ地域名を列挙する。
 const CURR=[
   // --- 東アジア ---
@@ -609,9 +612,9 @@ const CURR=[
   {code:'CZK',flag:'🇨🇿',name:'チェココルナ',en:'Czech Koruna',sym:'Kč',country:'チェコ Czech Republic',kw:'Czechia プラハ Prague'},
   {code:'HUF',flag:'🇭🇺',name:'ハンガリー フォリント',en:'Hungarian Forint',sym:'Ft',country:'ハンガリー Hungary'},
   {code:'RON',flag:'🇷🇴',name:'ルーマニア レウ',en:'Romanian Leu',sym:'lei',country:'ルーマニア Romania'},
-  {code:'BGN',flag:'🇧🇬',name:'ブルガリア レフ',en:'Bulgarian Lev',sym:'лв',country:'ブルガリア Bulgaria',kw:'レフ Lev'},
+  {code:'BGN',flag:'🇧🇬',name:'ブルガリア レフ',en:'Bulgarian Lev',sym:'лв',country:'ブルガリア Bulgaria',kw:'レフ Lev',legacy:true},
   {code:'RSD',flag:'🇷🇸',name:'セルビア ディナール',en:'Serbian Dinar',sym:'дин.',country:'セルビア Serbia'},
-  {code:'HRK',flag:'🇭🇷',name:'クロアチア クーナ',en:'Croatian Kuna',sym:'kn',country:'クロアチア Croatia',kw:'クーナ Kuna'},
+  {code:'HRK',flag:'🇭🇷',name:'クロアチア クーナ',en:'Croatian Kuna',sym:'kn',country:'クロアチア Croatia',kw:'クーナ Kuna',legacy:true},
   {code:'BAM',flag:'🇧🇦',name:'ボスニア マルク',en:'Convertible Mark',sym:'KM',country:'ボスニア・ヘルツェゴビナ Bosnia and Herzegovina'},
   {code:'MKD',flag:'🇲🇰',name:'北マケドニア デナル',en:'Macedonian Denar',sym:'ден',country:'北マケドニア North Macedonia'},
   {code:'ALL',flag:'🇦🇱',name:'アルバニア レク',en:'Albanian Lek',sym:'L',country:'アルバニア Albania'},
@@ -864,6 +867,9 @@ function currencyMatches(c,q){
   const hay=normSearchText([c.code,c.name,c.en,c.country,c.sym,c.kw].filter(Boolean).join(' '));
   return q.split(' ').every(t=>hay.indexOf(t)>=0);
 }
+// 旧通貨（legacy:true）を新規選択候補から一元的に除外する。ここを通すのは選択モーダルの
+// 候補生成のみで、ci(code)・既存支払い表示・為替タブ・精算・バックアップ復元は対象外
+function selectableCurr(list){return list.filter(c=>c&&!c.legacy);}
 // 「その他の通貨」の展開状態。通貨数が多いため初期表示では折りたたみ、モーダルを開くたびに戻す
 let curListExpanded=false;
 function renderCurrencyList(q){
@@ -880,18 +886,19 @@ function renderCurrencyList(q){
     </button>`;
   let html='';
   if(!query){
-    const recent=getRecentCurr().map(code=>ci(code));
+    // 最近使った通貨：localStorageの保存値は温存し、表示だけ旧通貨を除外する
+    const recent=selectableCurr(getRecentCurr().map(code=>ci(code)));
     if(recent.length)html+='<div class="cur-sec">最近使った通貨</div>'+recent.map(item).join('');
-    const common=COMMON_CURR.map(code=>CURR.find(c=>c.code===code)).filter(Boolean);
+    const common=selectableCurr(COMMON_CURR.map(code=>CURR.find(c=>c.code===code)));
     html+='<div class="cur-sec">よく使われる通貨</div>'+common.map(item).join('');
     // その他の通貨は件数が多いため折りたたみ。検索でも探せる
-    const rest=CURR.filter(c=>COMMON_CURR.indexOf(c.code)<0);
+    const rest=selectableCurr(CURR).filter(c=>COMMON_CURR.indexOf(c.code)<0);
     html+='<div class="cur-sec">その他の通貨</div>';
     if(curListExpanded)html+=rest.map(item).join('');
     else html+=`<button type="button" class="cur-more" id="cur-more">その他の通貨をすべて表示（${rest.length}通貨）</button>`;
   }else{
     // CURRは通貨コード一意のため検索結果に同一通貨は重複しない
-    const filtered=CURR.filter(c=>currencyMatches(c,query));
+    const filtered=selectableCurr(CURR).filter(c=>currencyMatches(c,query));
     html=filtered.length?filtered.map(item).join(''):'<div style="padding:20px 16px;color:#999;font-size:13px">見つかりませんでした</div>';
   }
   list.innerHTML=html;
