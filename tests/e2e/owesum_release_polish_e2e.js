@@ -1,7 +1,7 @@
 // OweSum 公開前修正（2026-07-25）のE2E検証（Playwright・DBアクセスなし）。
 // 検証範囲：
 //  A. 精算画面：合計支出/1人あたりカードの削除、個人別の精算内訳の合計行、送金額表の維持、横スクロールなし
-//  B. 共有URL：tab=settle & ogv=20260725-1 付与、共有URLで精算タブ初期表示、通常URLはメンバータブ維持
+//  B. 共有URL：tab=settle & ogv=20260725-2 付与、共有URLで精算タブ初期表示、通常URLはメンバータブ維持
 //  C. OGPメタタグ（ローカル配信HTML上の静的検証。外部URL疎通はテスト外でcurl確認）
 // SupabaseへのRESTアクセスはPlaywrightのルート横取りでモックし、書き込み（GET以外）は遮断して検出する。
 const http = require('http');
@@ -19,7 +19,7 @@ function ok(name, cond, extra) { if (cond) { PASS++; } else { FAIL++; fails.push
 
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
-  if (p === '/') p = '/index.html';
+  if (p.endsWith('/')) p += 'index.html';
   const fp = path.join(ROOT, p);
   fs.readFile(fp, (e, data) => {
     if (e) { res.writeHead(404); res.end('nf'); return; }
@@ -77,13 +77,13 @@ async function jsErrors(page) {
 (async () => {
   await new Promise(r => server.listen(0, r));
   const PORT = server.address().port;
-  const BASE = `http://localhost:${PORT}/index.html`;
+  const BASE = `http://localhost:${PORT}/ja/`;
   const browser = await chromium.launch();
 
   // ---------- B-1. 共有URL（tab=settle&ogv）で開くと精算タブが初期表示される（紹介画面確認済み端末） ----------
   {
     const { ctx, page } = await newCtx(browser, { width: 390, height: 844 }, { introSeen: true });
-    const shareUrl = `${BASE}?g=${GID}&tab=settle&ogv=20260725-1`;
+    const shareUrl = `${BASE}?g=${GID}&tab=settle&ogv=20260725-2`;
     await page.goto(shareUrl, { waitUntil: 'load' });
     await page.waitForFunction(() => {
       const on = document.querySelector('.nb.on');
@@ -156,7 +156,7 @@ async function jsErrors(page) {
     ok('[B] 共有文にURLが1つ含まれる', !!m && sh.text.split(sharedUrl).length - 1 === 1, sharedUrl);
     ok('[B] 共有URLに g=グループID を維持', !!q && q.get('g') === 'e2e-share-group', sharedUrl);
     ok('[B] 共有URLに tab=settle', !!q && q.get('tab') === 'settle', sharedUrl);
-    ok('[B] 共有URLに ogv=20260725-1', !!q && q.get('ogv') === '20260725-1', sharedUrl);
+    ok('[B] 共有URLに ogv=20260725-2', !!q && q.get('ogv') === '20260725-2', sharedUrl);
     const shareAmts = [...sh.text.matchAll(/([\d,]+)円/g)].map(x => parseInt(x[1].replace(/,/g, ''), 10)).sort();
     ok('[B] 共有文の送金金額が画面と一致', JSON.stringify(shareAmts) === JSON.stringify(sh.disp.slice().sort()) && shareAmts.length > 0, `share=${shareAmts} disp=${sh.disp}`);
     const errs1 = await jsErrors(page);
@@ -181,7 +181,7 @@ async function jsErrors(page) {
   // ---------- B-4. 新規ブラウザーコンテキスト（紹介画面未確認）でも共有URL→開くで精算タブ ----------
   {
     const { ctx, page } = await newCtx(browser, { width: 390, height: 844 }); // introSeenなし＝完全新規
-    await page.goto(`${BASE}?g=${GID}&tab=settle&ogv=20260725-1`, { waitUntil: 'load' });
+    await page.goto(`${BASE}?g=${GID}&tab=settle&ogv=20260725-2`, { waitUntil: 'load' });
     await page.waitForFunction(() => document.getElementById('p-intro').classList.contains('show'), { timeout: 15000 });
     ok('[B] 新規端末ではまず紹介画面が表示される（従来仕様維持）', true);
     await page.click('#btn-intro-open');
@@ -202,7 +202,7 @@ async function jsErrors(page) {
   // ---------- B-5. 存在しないグループの共有URLでもJSエラーを出さない ----------
   {
     const { ctx, page } = await newCtx(browser, { width: 390, height: 844 }, { introSeen: true });
-    await page.goto(`${BASE}?g=no-such-group&tab=settle&ogv=20260725-1`, { waitUntil: 'load' });
+    await page.goto(`${BASE}?g=no-such-group&tab=settle&ogv=20260725-2`, { waitUntil: 'load' });
     // ask()モーダルが出る想定 → OKを押して閉じ、グループ一覧へ戻ることを確認
     await page.waitForTimeout(800);
     await page.evaluate(() => { const b = document.getElementById('modal-ok'); if (b && getComputedStyle(document.getElementById('modal-bg')).display !== 'none') b.click(); });
@@ -217,7 +217,7 @@ async function jsErrors(page) {
   // ---------- A-2. PC 1280pxでの精算画面と横スクロール ----------
   {
     const { ctx, page } = await newCtx(browser, { width: 1280, height: 800 }, { introSeen: true });
-    await page.goto(`${BASE}?g=${GID}&tab=settle&ogv=20260725-1`, { waitUntil: 'load' });
+    await page.goto(`${BASE}?g=${GID}&tab=settle&ogv=20260725-2`, { waitUntil: 'load' });
     await page.waitForFunction(() => {
       const on = document.querySelector('.nb.on');
       return on && on.dataset.tab === 'settle';
@@ -237,7 +237,7 @@ async function jsErrors(page) {
   // ---------- C. OGPメタタグ（配信HTML・クエリ付きURLでも同一） ----------
   {
     const { ctx, page } = await newCtx(browser, { width: 800, height: 600 });
-    for (const [label, u] of [['素URL', BASE], ['共有クエリ付き', `${BASE}?g=${GID}&tab=settle&ogv=20260725-1`]]) {
+    for (const [label, u] of [['素URL', BASE], ['共有クエリ付き', `${BASE}?g=${GID}&tab=settle&ogv=20260725-2`]]) {
       await page.goto(u, { waitUntil: 'domcontentloaded' });
       const og = await page.evaluate(() => {
         const g = p => { const el = document.querySelector(`meta[property="${p}"]`) || document.querySelector(`meta[name="${p}"]`); return el ? el.getAttribute('content') : null; };
@@ -253,8 +253,8 @@ async function jsErrors(page) {
       ok(`[C] ${label}: 寸法メタが1200x630`, og.w === '1200' && og.h === '630', `${og.w}x${og.h}`);
       ok(`[C] ${label}: twitter:cardがsummary_large_image`, og.card === 'summary_large_image', String(og.card));
       ok(`[C] ${label}: twitter:imageがog:imageと同一`, og.timg === og.image, String(og.timg));
-      ok(`[C] ${label}: og:title/og:description維持`, og.title === 'OweSum｜みんなの立替を、かんたん精算' && !!og.desc, String(og.title));
-      ok(`[C] ${label}: og:urlが正式公開先`, og.url === 'https://narimatsumasato.github.io/narika/', String(og.url));
+      ok(`[C] ${label}: og:title/og:description維持`, og.title === 'OweSum｜飲み会も旅行も簡単に精算' && !!og.desc, String(og.title));
+      ok(`[C] ${label}: og:urlが正式公開先`, og.url === 'https://owesum-app.github.io/ja/', String(og.url));
     }
     // ローカル配信での画像実体確認（実寸はメタと一致するか）
     const imgFile = path.join(ROOT, 'assets', 'images', 'owesum-ogp.png');

@@ -15,7 +15,7 @@ function ok(name, cond, extra) { if (cond) { PASS++; } else { FAIL++; fails.push
 
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
-  if (p === '/') p = '/index.html';
+  if (p.endsWith('/')) p += 'index.html';
   const fp = path.join(ROOT, p);
   fs.readFile(fp, (e, data) => {
     if (e) { res.writeHead(404); res.end('nf'); return; }
@@ -84,7 +84,7 @@ function parseYen(text) { const m = [...text.matchAll(/([\d,]+)円/g)].map(x => 
 (async () => {
   await new Promise(r => server.listen(0, r));
   const PORT = server.address().port;
-  const BASE = `http://localhost:${PORT}/index.html`;
+  const BASE = `http://localhost:${PORT}/ja/`;
   const browser = await chromium.launch();
 
   async function open(viewport) {
@@ -259,6 +259,20 @@ function parseYen(text) { const m = [...text.matchAll(/([\d,]+)円/g)].map(x => 
     ok('[share] shareにurl項目を渡さない', sh.hasUrl === false, sh.keys.join(','));
     ok('[share] 本文中のURLはちょうど1つ', sh.urlCount === 1, 'count=' + sh.urlCount);
     ok('[share] shareのtitleが件名', sh.title === `OweSum「${GNAME}」の精算結果`, sh.title);
+
+    // 18b 招待リンク共有 → navigator.share（text=案内文のみ・URLはurl項目に1回。両方に入れるとLINEでURLが2回表示されるため）
+    await page.evaluate(() => { window.__shareCalls = []; document.getElementById('btn-share-link').click(); });
+    await page.waitForTimeout(50);
+    const inv = await page.evaluate(() => {
+      const c = window.__shareCalls[window.__shareCalls.length - 1] || {};
+      const url = window.buildInviteUrl('gid-xyz');
+      const gname = document.getElementById('g-title').textContent;
+      return { called: window.__shareCalls.length, textHasUrl: /https?:\/\//.test(c.text || ''), urlOk: c.url === url, fallback: window.buildInviteMessage(gname, url), url };
+    });
+    ok('[share] 招待共有でnavigator.shareが呼ばれる', inv.called >= 1, String(inv.called));
+    ok('[share] 招待共有のtextにURLを含めない', inv.textHasUrl === false, 'textHasUrl=' + inv.textHasUrl);
+    ok('[share] 招待共有のurl項目が招待URLと一致', inv.urlOk, inv.url);
+    ok('[share] 招待フォールバック全文はURLちょうど1回', inv.fallback.split(inv.url).length - 1 === 1, inv.fallback.slice(0, 120));
 
     // 20-24 メール mailto
     const mailto = await page.evaluate((gn) => {
