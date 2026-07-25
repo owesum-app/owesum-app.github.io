@@ -1,0 +1,27 @@
+{
+  "name": "owesum",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/narimatsumasato/narika.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/narimatsumasato/narika/issues"
+  },
+  "homepage": "https://github.com/narimatsumasato/narika#readme",
+  "dependencies": {
+    "playwright": "^1.62.0"
+  }
+}

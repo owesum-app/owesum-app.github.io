@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const ROOT = 'C:\\Users\\narim\\narika';
+const ROOT = 'C:\\Users\\narim\\OweSum';
 const MIME = { '.html':'text/html;charset=utf-8', '.webp':'image/webp', '.png':'image/png', '.json':'application/json', '.js':'text/javascript', '.css':'text/css' };
 const SHOT = path.join(__dirname, 'shots');
 if (!fs.existsSync(SHOT)) fs.mkdirSync(SHOT);

@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const ROOT = 'C:\\Users\\narim\\narika';
+const ROOT = 'C:\\Users\\narim\\OweSum';
 const MIME = { '.html': 'text/html;charset=utf-8', '.webp': 'image/webp', '.png': 'image/png', '.js': 'text/javascript', '.css': 'text/css' };
 const SHOT = process.env.SHOT_DIR || path.join(__dirname, 'shots');
 if (!fs.existsSync(SHOT)) fs.mkdirSync(SHOT, { recursive: true });
@@ -250,17 +250,17 @@ async function jsErrors(page) {
       ok(`[C] ${label}: og:imageがHTTPS絶対URL`, !!og.image && og.image.startsWith('https://'), String(og.image));
       ok(`[C] ${label}: og:image:secure_urlがog:imageと一致`, og.secure === og.image, String(og.secure));
       ok(`[C] ${label}: og:image:typeがimage/png`, og.type === 'image/png', String(og.type));
-      ok(`[C] ${label}: 寸法メタが1731x909`, og.w === '1731' && og.h === '909', `${og.w}x${og.h}`);
+      ok(`[C] ${label}: 寸法メタが1200x630`, og.w === '1200' && og.h === '630', `${og.w}x${og.h}`);
       ok(`[C] ${label}: twitter:cardがsummary_large_image`, og.card === 'summary_large_image', String(og.card));
       ok(`[C] ${label}: twitter:imageがog:imageと同一`, og.timg === og.image, String(og.timg));
       ok(`[C] ${label}: og:title/og:description維持`, og.title === 'OweSum｜みんなの立替を、かんたん精算' && !!og.desc, String(og.title));
       ok(`[C] ${label}: og:urlが正式公開先`, og.url === 'https://narimatsumasato.github.io/narika/', String(og.url));
     }
     // ローカル配信での画像実体確認（実寸はメタと一致するか）
-    const imgFile = path.join(ROOT, 'owesum-line-20260724.png');
+    const imgFile = path.join(ROOT, 'assets', 'images', 'owesum-ogp.png');
     const buf = fs.readFileSync(imgFile);
     const w = buf.readUInt32BE(16), h = buf.readUInt32BE(20);
-    ok('[C] 実画像owesum-line-20260724.pngの実寸が1731x909', w === 1731 && h === 909, `${w}x${h}`);
+    ok('[C] 実画像owesum-ogp.pngの実寸が1200x630', w === 1200 && h === 630, `${w}x${h}`);
     ok('[C] 実画像がPNGシグネチャ', buf.slice(1, 4).toString() === 'PNG', '');
     await ctx.close();
   }

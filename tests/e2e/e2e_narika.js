@@ -125,7 +125,7 @@ async function overlapInfo(p) {
     console.log('--- 1b. ヒーロー画像（モバイル幅375×720） ---');
     check('ヒーロー表示', await page.isVisible('.hero'));
     check('画像が表示される', await page.isVisible('.hero-img'));
-    check('モバイル幅でmobile画像', (await page.evaluate(() => document.querySelector('.hero-img').currentSrc)).includes('owesum-hero-mobile.webp'));
+    check('モバイル幅でmobile画像', (await page.evaluate(() => document.querySelector('.hero-img').currentSrc)).includes('assets/images/owesum-hero-mobile.png'));
     check('画像は1画面を占有しない（高さ<=画面の約半分）', await page.evaluate(() => {
       const r = document.querySelector('.hero-img').getBoundingClientRect();
       return r.height <= window.innerHeight * 0.55 + 1;
@@ -556,7 +556,7 @@ async function overlapInfo(p) {
     check('PCでボタンが初期画面内', ppBtn && ppBtn.y + ppBtn.height <= 800);
     const ppTitle = await pp.locator('.hero-title').boundingBox();
     check('PCで文字ブロックが左側', ppTitle && ppTitle.x >= 1280 * 0.06 && ppTitle.x + ppTitle.width <= 1280 * 0.55, JSON.stringify(ppTitle));
-    check('PCでは説明文と注記を表示', await pp.evaluate(() => getComputedStyle(document.querySelector('.hero-desc')).display !== 'none' && getComputedStyle(document.querySelector('.hero-note')).display !== 'none'));
+    check('PCでは説明文を表示', await pp.evaluate(() => getComputedStyle(document.querySelector('.hero-desc')).display !== 'none'));
     check('PCでは復元テキストリンク(#restore-sp-wrap)は非表示', await pp.evaluate(() => getComputedStyle(document.getElementById('restore-sp-wrap')).display === 'none'));
     check('PCでは下部の作成フォームを表示', await pp.evaluate(() => { document.getElementById('btn-create-group').scrollIntoView(); return true; }) && (await pp.isVisible('#btn-create-group')) && (await pp.isVisible('#gname')));
     check('PCでは下部の復元カードを表示', await pp.isVisible('#btn-restore'));

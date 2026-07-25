@@ -10,10 +10,10 @@
 <meta name="description" content="飲み会、旅行、イベントの立替をかんたん記録。誰が誰にいくら払えばよいかを自動計算します。">
 <meta property="og:title" content="OweSum｜みんなの立替を、かんたん精算">
 <meta property="og:description" content="飲み会、旅行、イベントの立替をかんたん記録。誰が誰にいくら払えばよいかを自動計算します。">
-<meta property="og:image" content="https://narimatsumasato.github.io/narika/owesum-line-20260724.png">
-<meta property="og:image:secure_url" content="https://narimatsumasato.github.io/narika/owesum-line-20260724.png">
-<meta property="og:image:width" content="1731">
-<meta property="og:image:height" content="909">
+<meta property="og:image" content="https://narimatsumasato.github.io/narika/assets/images/owesum-ogp.png">
+<meta property="og:image:secure_url" content="https://narimatsumasato.github.io/narika/assets/images/owesum-ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:alt" content="OweSum 飲み会も旅行も簡単に精算 傾斜配分OK！">
 <meta property="og:type" content="website">
@@ -22,7 +22,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="OweSum｜みんなの立替を、かんたん精算">
 <meta name="twitter:description" content="飲み会、旅行、イベントの立替をかんたん記録。誰が誰にいくら払えばよいかを自動計算します。">
-<meta name="twitter:image" content="https://narimatsumasato.github.io/narika/owesum-line-20260724.png">
+<meta name="twitter:image" content="https://narimatsumasato.github.io/narika/assets/images/owesum-ogp.png">
 <meta name="twitter:image:alt" content="OweSum 飲み会も旅行も簡単に精算 傾斜配分OK！">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
@@ -175,17 +175,25 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 @media (min-width:768px){
   .br-sp{display:none}
   .hero-groups-link{display:none}
-  .hero{height:auto;min-height:100vh;min-height:100svh}
+  .hero{height:100vh;height:100svh}
   .hero::before{content:'';position:absolute;inset:0;pointer-events:none;z-index:1;background:linear-gradient(90deg,#f9f4ef 0%,#f9f4ef 28%,rgba(249,244,239,0) 34%)}
   .hero-img{object-position:100% 50%}
-  .hero-inner{justify-content:center;min-height:100vh;min-height:100svh;margin:0;padding:0 24px 12vh 8%;max-width:none;width:100%;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;border-radius:0;box-shadow:none}
-  .hero-inner>*{max-width:540px}
+  .hero-inner{justify-content:flex-start;height:100vh;height:100svh;margin:0;padding:5vh 24px 4vh 8%;max-width:none;width:100%;background:none;backdrop-filter:none;-webkit-backdrop-filter:none;border:none;border-radius:0;box-shadow:none;overflow-y:auto}
+  .hero-inner>*{max-width:540px;flex-shrink:0}
   .hero-logo{font-size:46px}
   .hero-kana{font-size:15px}
   .hero-title{font-size:34px;margin:18px 0 12px}
   .hero-desc{display:block;font-size:16px;margin-bottom:24px}
   .hero-note{display:block}
-  .hero-btn{font-size:17px;padding:15px 34px;width:auto}
+  .hero-btn{font-size:17px;padding:15px 34px;width:auto;margin-bottom:20px}
+  /* PCのみオレンジの主ボタンを非表示（下の参加中グループ・作成欄・青いグループ作成ボタンは維持）。JS処理・要素自体は削除しない */
+  #btn-hero-create{display:none}
+  /* PC左側：ヒーロー下部の空き領域に参加中グループ・新規作成・復元を配置。写真に重ならないよう幅を写真手前（グラデーション開始28%）に収め、一覧は際限なく伸ばさず内部スクロールにする */
+  #my-groups{max-width:clamp(220px,18vw,320px);max-height:190px;overflow-y:auto}
+  .hero-inner .card.sp-hide{margin-top:14px;margin-bottom:0;max-width:clamp(220px,18vw,320px)}
+  #restore-sp-wrap{display:block;text-align:left;padding:10px 0 0;margin-top:2px;max-width:clamp(220px,18vw,320px)}
+  .restore-card-full{display:none}
+  #p-group .wrap{display:none}
 }
 @media (min-aspect-ratio: 12/7) and (min-width: 768px){
   .hero::before{background:linear-gradient(90deg,#f9f4ef 0%,#f9f4ef 35%,rgba(249,244,239,0) 42%)}
@@ -213,7 +221,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 <div id="p-intro" class="page">
   <!-- 通常トップと同系統：画像を横幅いっぱいで見せ、その直下に招待カードだけを自然につなげる -->
   <div class="intro-media">
-    <img src="owesum-hero-mobile-20260723.png" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="intro-img" onerror="this.closest('.intro-media').style.display='none'">
+    <img src="assets/images/owesum-hero-mobile.png" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="intro-img" onerror="this.closest('.intro-media').style.display='none'">
   </div>
   <div class="wrap">
     <div class="card" style="text-align:center;padding:22px 16px">
@@ -227,36 +235,36 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 <div id="p-group" class="page show">
   <section class="hero">
     <div class="hero-inner">
+      <h1 class="hero-title">飲み会も旅行も簡単に精算！</h1>
       <p class="hero-brand"><span class="hero-logo">OweSum</span><span class="hero-kana">オーサム</span></p>
-      <h1 class="hero-title">飲み会も、旅行も。<br>みんなの立替を、<br class="br-sp">かんたん精算。</h1>
-      <p class="hero-desc">誰がいくら立て替えたかを記録するだけで、<br>面倒な割り勘をスムーズに。</p>
+      <p class="hero-desc">登録不要、すぐ使える！<br>傾斜精算も可能！<br>海外旅行にも使える！</p>
       <button type="button" class="hero-btn" id="btn-hero-create">新しいグループを作る</button>
-      <p class="hero-note">ログイン不要・すぐに使えます</p>
+      <div id="my-groups"></div>
+      <div class="card sp-hide">
+        <label>新しいグループを作る</label>
+        <input type="text" id="gname" placeholder="例：歓迎会" style="margin-bottom:10px">
+        <button type="button" class="btn" id="btn-create-group">グループを作成</button>
+      </div>
+      <!-- 復元は控えめなテキストリンクとして配置（既存の#restore-file・復元処理を共通利用）。スマホはCSSでdisplay:blockに切替、PCはhero-inner内でそのまま表示 -->
+      <div id="restore-sp-wrap">
+        <button type="button" class="restore-link" id="btn-restore-sp"><i class="ti ti-file-import" style="font-size:15px"></i>バックアップファイルから復元する</button>
+      </div>
     </div>
     <div class="hero-media">
       <picture>
-        <source media="(min-width: 768px)" srcset="owesum-hero-desktop.png?v=3">
-        <img src="owesum-hero-mobile-20260723.png" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="hero-img" onerror="this.style.display='none';this.closest('.hero').classList.add('img-failed')">
+        <source media="(min-width: 768px)" srcset="assets/images/owesum-hero-pc.png?v=3">
+        <img src="assets/images/owesum-hero-mobile.png" alt="OweSum（オーサム）｜飲み会も旅行も簡単に精算" class="hero-img" onerror="this.style.display='none';this.closest('.hero').classList.add('img-failed')">
       </picture>
     </div>
   </section>
   <div class="wrap">
     <div id="debug-box" style="display:none !important"></div>
-    <div id="my-groups"></div>
-    <div class="card sp-hide">
-      <label>新しいグループを作る</label>
-      <input type="text" id="gname" placeholder="例：歓迎会" style="margin-bottom:10px">
-      <button type="button" class="btn" id="btn-create-group">グループを作成</button>
-    </div>
-    <div class="card sp-hide">
+    <!-- PCではhero-inner内の#restore-sp-wrapに一本化するため、このフルカードはPCで非表示（機能の二重表示回避）。スマホではsp-hideにより従来どおり非表示のまま -->
+    <div class="card sp-hide restore-card-full">
       <label>バックアップから復元</label>
       <div style="font-size:12px;color:#666;line-height:1.6;margin-bottom:10px">以前保存したバックアップファイルを選ぶと、新しいグループとして復元します。</div>
       <button type="button" class="btn-sm" id="btn-restore" style="width:100%;padding:11px">バックアップファイルから復元する</button>
       <input type="file" id="restore-file" accept=".json,application/json" style="display:none">
-    </div>
-    <!-- スマホトップ：一覧の下に控えめなテキストリンクとして配置（既存の#restore-file・復元処理を共通利用） -->
-    <div id="restore-sp-wrap">
-      <button type="button" class="restore-link" id="btn-restore-sp"><i class="ti ti-file-import" style="font-size:15px"></i>バックアップファイルから復元する</button>
     </div>
   </div>
 </div>
