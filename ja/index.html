@@ -120,6 +120,9 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .cur-item.sel{background:#eff6ff}
 .cur-item.sel .cur-code{color:#1d4ed8}
 .cur-sec{font-size:11px;color:#999;font-weight:600;padding:10px 16px 4px;background:#fafafa}
+.cur-item .cur-sym{color:#999;font-size:12px;flex:none;max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cur-more{display:block;width:calc(100% - 32px);margin:10px 16px 14px;padding:11px;font-size:13px;font-weight:600;color:#1d4ed8;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-family:inherit;cursor:pointer}
+.cur-more:active{background:#dbeafe}
 /* 支払いカード */
 .exp-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .exp-date{font-size:12px;color:#666;flex-shrink:0}
@@ -434,7 +437,7 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <button type="button" id="cur-close" class="btn-sm" style="padding:6px 10px" aria-label="閉じる">✕ 閉じる</button>
     </div>
     <div style="padding:0 16px 10px">
-      <input type="text" id="cur-search" placeholder="通貨コード・通貨名・国名で検索" autocomplete="off">
+      <input type="text" id="cur-search" placeholder="通貨コード・通貨名・国名・記号で検索" autocomplete="off">
     </div>
     <div id="cur-list" style="overflow-y:auto;flex:1;padding-bottom:env(safe-area-inset-bottom)"></div>
   </div>
@@ -527,33 +530,193 @@ function askInput(message,placeholder){
   });
 }
 
-// 通貨データはここで一元管理する（en=英語名、country=国・地域名。検索対象）
+// ===== 標準通貨データ（ここで一元管理する） =====
+// 出典（一次情報）：ISO 4217 Maintenance Agency（SIX Financial Information）公表の
+// 「List One: Current currency & funds code list」（Published 2026-01-01）を2026-07-26に取得し照合。
+// https://www.six-group.com/en/products-services/financial-information/data-standards.html
+// 収録方針：List One掲載の現行通貨のうち、一般の旅行・立替精算で使う法定通貨155種を収録する。
+// 除外方針（計23コード）：貴金属（XAU/XAG/XPD/XPT）、通貨なし（XXX）、テスト用（XTS）、
+//   基金・決済専用（List OneのIsFund属性：BOV/CHE/CHW/CLF/COU/MXV/USN/UYI）、
+//   会計単位・特殊単位（XDR/XUA/XSU/XAD/XBA/XBB/XBC/XBD/UYW）。
+// 互換維持：HRK（クロアチア、2023年ユーロ移行）とBGN（ブルガリア、2026年ユーロ移行）は
+//   現行List One非掲載だが、既存グループのデータ互換のため従来どおり収録を継続する（計157件）。
+// フィールド：code=ISOコード、flag=国旗絵文字、name=日本語名、en=英語名（List One準拠）、
+//   sym=通貨記号（任意）、country=国・地域名（検索用）、kw=検索用の別名・追加地域（任意）。
+//   country/kw/sym/en/name/codeはすべて検索対象。同一通貨は重複登録せず、多国利用はcountry/kwへ地域名を列挙する。
 const CURR=[
-  {code:'JPY',flag:'🇯🇵',name:'円',en:'Japanese Yen',country:'日本 Japan'},
-  {code:'THB',flag:'🇹🇭',name:'バーツ',en:'Thai Baht',country:'タイ Thailand'},
-  {code:'KRW',flag:'🇰🇷',name:'ウォン',en:'South Korean Won',country:'韓国 South Korea'},
-  {code:'USD',flag:'🇺🇸',name:'ドル',en:'US Dollar',country:'アメリカ United States'},
-  {code:'EUR',flag:'🇪🇺',name:'ユーロ',en:'Euro',country:'ヨーロッパ Europe Eurozone'},
-  {code:'GBP',flag:'🇬🇧',name:'ポンド',en:'British Pound',country:'イギリス United Kingdom'},
-  {code:'CNY',flag:'🇨🇳',name:'人民元',en:'Chinese Yuan',country:'中国 China'},
-  {code:'HKD',flag:'🇭🇰',name:'香港ドル',en:'Hong Kong Dollar',country:'香港 Hong Kong'},
-  {code:'TWD',flag:'🇹🇼',name:'台湾ドル',en:'New Taiwan Dollar',country:'台湾 Taiwan'},
-  {code:'SGD',flag:'🇸🇬',name:'SGドル',en:'Singapore Dollar',country:'シンガポール Singapore'},
-  {code:'AUD',flag:'🇦🇺',name:'豪ドル',en:'Australian Dollar',country:'オーストラリア Australia'},
-  {code:'CAD',flag:'🇨🇦',name:'CAドル',en:'Canadian Dollar',country:'カナダ Canada'},
-  {code:'RSD',flag:'🇷🇸',name:'セルビア ディナール',en:'Serbian Dinar',country:'セルビア Serbia'},
-  {code:'HRK',flag:'🇭🇷',name:'クロアチア クーナ',en:'Croatian Kuna',country:'クロアチア Croatia'},
-  {code:'BAM',flag:'🇧🇦',name:'ボスニア マルク',en:'Convertible Mark',country:'ボスニア・ヘルツェゴビナ Bosnia and Herzegovina'},
-  {code:'MKD',flag:'🇲🇰',name:'北マケドニア デナル',en:'Macedonian Denar',country:'北マケドニア North Macedonia'},
-  {code:'ALL',flag:'🇦🇱',name:'アルバニア レク',en:'Albanian Lek',country:'アルバニア Albania'},
-  {code:'BGN',flag:'🇧🇬',name:'ブルガリア レフ',en:'Bulgarian Lev',country:'ブルガリア Bulgaria'},
-  {code:'RON',flag:'🇷🇴',name:'ルーマニア レウ',en:'Romanian Leu',country:'ルーマニア Romania'},
-  {code:'HUF',flag:'🇭🇺',name:'ハンガリー フォリント',en:'Hungarian Forint',country:'ハンガリー Hungary'},
-  {code:'MDL',flag:'🇲🇩',name:'モルドバ レウ',en:'Moldovan Leu',country:'モルドバ Moldova'},
-  {code:'UAH',flag:'🇺🇦',name:'ウクライナ フリブニャ',en:'Ukrainian Hryvnia',country:'ウクライナ Ukraine'},
+  // --- 東アジア ---
+  {code:'JPY',flag:'🇯🇵',name:'円',en:'Japanese Yen',sym:'¥',country:'日本 Japan'},
+  {code:'CNY',flag:'🇨🇳',name:'人民元',en:'Chinese Yuan',sym:'元',country:'中国 China',kw:'RMB Renminbi'},
+  {code:'KRW',flag:'🇰🇷',name:'ウォン',en:'South Korean Won',sym:'₩',country:'韓国 South Korea'},
+  {code:'TWD',flag:'🇹🇼',name:'台湾ドル',en:'New Taiwan Dollar',sym:'NT$',country:'台湾 Taiwan'},
+  {code:'HKD',flag:'🇭🇰',name:'香港ドル',en:'Hong Kong Dollar',sym:'HK$',country:'香港 Hong Kong'},
+  {code:'MOP',flag:'🇲🇴',name:'パタカ',en:'Pataca',sym:'MOP$',country:'マカオ Macao',kw:'Macau'},
+  {code:'MNT',flag:'🇲🇳',name:'トゥグルグ',en:'Tugrik',sym:'₮',country:'モンゴル Mongolia'},
+  {code:'KPW',flag:'🇰🇵',name:'北朝鮮ウォン',en:'North Korean Won',sym:'₩',country:'北朝鮮 North Korea'},
+  // --- 東南アジア ---
+  {code:'SGD',flag:'🇸🇬',name:'SGドル',en:'Singapore Dollar',sym:'S$',country:'シンガポール Singapore'},
+  {code:'THB',flag:'🇹🇭',name:'バーツ',en:'Thai Baht',sym:'฿',country:'タイ Thailand'},
+  {code:'VND',flag:'🇻🇳',name:'ドン',en:'Dong',sym:'₫',country:'ベトナム Vietnam',kw:'Viet Nam'},
+  {code:'MYR',flag:'🇲🇾',name:'リンギット',en:'Malaysian Ringgit',sym:'RM',country:'マレーシア Malaysia'},
+  {code:'IDR',flag:'🇮🇩',name:'ルピア',en:'Rupiah',sym:'Rp',country:'インドネシア Indonesia',kw:'バリ Bali'},
+  {code:'PHP',flag:'🇵🇭',name:'フィリピンペソ',en:'Philippine Peso',sym:'₱',country:'フィリピン Philippines',kw:'セブ Cebu'},
+  {code:'KHR',flag:'🇰🇭',name:'リエル',en:'Riel',sym:'៛',country:'カンボジア Cambodia'},
+  {code:'LAK',flag:'🇱🇦',name:'キープ',en:'Lao Kip',sym:'₭',country:'ラオス Laos'},
+  {code:'MMK',flag:'🇲🇲',name:'チャット',en:'Kyat',sym:'K',country:'ミャンマー Myanmar',kw:'ビルマ Burma'},
+  {code:'BND',flag:'🇧🇳',name:'ブルネイドル',en:'Brunei Dollar',sym:'B$',country:'ブルネイ Brunei'},
+  // --- 南アジア ---
+  {code:'INR',flag:'🇮🇳',name:'インドルピー',en:'Indian Rupee',sym:'₹',country:'インド India'},
+  {code:'NPR',flag:'🇳🇵',name:'ネパールルピー',en:'Nepalese Rupee',sym:'Rs',country:'ネパール Nepal'},
+  {code:'BTN',flag:'🇧🇹',name:'ニュルタム',en:'Ngultrum',sym:'Nu.',country:'ブータン Bhutan'},
+  {code:'LKR',flag:'🇱🇰',name:'スリランカルピー',en:'Sri Lanka Rupee',sym:'Rs',country:'スリランカ Sri Lanka'},
+  {code:'BDT',flag:'🇧🇩',name:'タカ',en:'Taka',sym:'৳',country:'バングラデシュ Bangladesh'},
+  {code:'PKR',flag:'🇵🇰',name:'パキスタンルピー',en:'Pakistan Rupee',sym:'Rs',country:'パキスタン Pakistan'},
+  {code:'MVR',flag:'🇲🇻',name:'ルフィヤ',en:'Rufiyaa',sym:'Rf',country:'モルディブ Maldives'},
+  {code:'AFN',flag:'🇦🇫',name:'アフガニ',en:'Afghani',sym:'؋',country:'アフガニスタン Afghanistan'},
+  // --- 中央アジア・コーカサス ---
+  {code:'KZT',flag:'🇰🇿',name:'テンゲ',en:'Tenge',sym:'₸',country:'カザフスタン Kazakhstan'},
+  {code:'UZS',flag:'🇺🇿',name:'スム',en:'Uzbekistan Sum',country:'ウズベキスタン Uzbekistan'},
+  {code:'KGS',flag:'🇰🇬',name:'ソム',en:'Som',country:'キルギス Kyrgyzstan'},
+  {code:'TJS',flag:'🇹🇯',name:'ソモニ',en:'Somoni',country:'タジキスタン Tajikistan'},
+  {code:'TMT',flag:'🇹🇲',name:'トルクメニスタンマナト',en:'Turkmenistan New Manat',country:'トルクメニスタン Turkmenistan'},
+  {code:'GEL',flag:'🇬🇪',name:'ラリ',en:'Lari',sym:'₾',country:'ジョージア Georgia',kw:'グルジア'},
+  {code:'AMD',flag:'🇦🇲',name:'ドラム',en:'Armenian Dram',sym:'֏',country:'アルメニア Armenia'},
+  {code:'AZN',flag:'🇦🇿',name:'アゼルバイジャンマナト',en:'Azerbaijan Manat',sym:'₼',country:'アゼルバイジャン Azerbaijan'},
+  // --- 中東 ---
+  {code:'AED',flag:'🇦🇪',name:'UAEディルハム',en:'UAE Dirham',sym:'Dh',country:'アラブ首長国連邦 United Arab Emirates',kw:'UAE ドバイ Dubai アブダビ Abu Dhabi'},
+  {code:'SAR',flag:'🇸🇦',name:'サウジリヤル',en:'Saudi Riyal',sym:'﷼',country:'サウジアラビア Saudi Arabia'},
+  {code:'QAR',flag:'🇶🇦',name:'カタールリヤル',en:'Qatari Rial',sym:'QR',country:'カタール Qatar'},
+  {code:'KWD',flag:'🇰🇼',name:'クウェートディナール',en:'Kuwaiti Dinar',sym:'KD',country:'クウェート Kuwait'},
+  {code:'BHD',flag:'🇧🇭',name:'バーレーンディナール',en:'Bahraini Dinar',sym:'BD',country:'バーレーン Bahrain'},
+  {code:'OMR',flag:'🇴🇲',name:'オマーンリアル',en:'Rial Omani',sym:'RO',country:'オマーン Oman'},
+  {code:'ILS',flag:'🇮🇱',name:'新シェケル',en:'New Israeli Sheqel',sym:'₪',country:'イスラエル Israel'},
+  {code:'JOD',flag:'🇯🇴',name:'ヨルダンディナール',en:'Jordanian Dinar',sym:'JD',country:'ヨルダン Jordan'},
+  {code:'LBP',flag:'🇱🇧',name:'レバノンポンド',en:'Lebanese Pound',country:'レバノン Lebanon'},
+  {code:'IQD',flag:'🇮🇶',name:'イラクディナール',en:'Iraqi Dinar',country:'イラク Iraq'},
+  {code:'IRR',flag:'🇮🇷',name:'イランリアル',en:'Iranian Rial',sym:'﷼',country:'イラン Iran'},
+  {code:'SYP',flag:'🇸🇾',name:'シリアポンド',en:'Syrian Pound',country:'シリア Syria'},
+  {code:'YER',flag:'🇾🇪',name:'イエメンリアル',en:'Yemeni Rial',country:'イエメン Yemen'},
+  {code:'TRY',flag:'🇹🇷',name:'トルコリラ',en:'Turkish Lira',sym:'₺',country:'トルコ Turkey',kw:'Türkiye Turkiye'},
+  // --- ヨーロッパ ---
+  {code:'EUR',flag:'🇪🇺',name:'ユーロ',en:'Euro',sym:'€',country:'ヨーロッパ Europe Eurozone',kw:'フランス France ドイツ Germany イタリア Italy スペイン Spain ポルトガル Portugal オランダ Netherlands ベルギー Belgium オーストリア Austria ギリシャ Greece フィンランド Finland アイルランド Ireland ルクセンブルク Luxembourg スロベニア Slovenia スロバキア Slovakia エストニア Estonia ラトビア Latvia リトアニア Lithuania マルタ Malta キプロス Cyprus クロアチア Croatia ブルガリア Bulgaria モナコ Monaco バチカン Vatican サンマリノ San Marino アンドラ Andorra モンテネグロ Montenegro コソボ Kosovo'},
+  {code:'GBP',flag:'🇬🇧',name:'ポンド',en:'British Pound',sym:'£',country:'イギリス United Kingdom',kw:'英国 UK スコットランド Scotland ロンドン London'},
+  {code:'CHF',flag:'🇨🇭',name:'スイスフラン',en:'Swiss Franc',sym:'Fr',country:'スイス Switzerland',kw:'リヒテンシュタイン Liechtenstein'},
+  {code:'SEK',flag:'🇸🇪',name:'スウェーデンクローナ',en:'Swedish Krona',sym:'kr',country:'スウェーデン Sweden'},
+  {code:'NOK',flag:'🇳🇴',name:'ノルウェークローネ',en:'Norwegian Krone',sym:'kr',country:'ノルウェー Norway'},
+  {code:'DKK',flag:'🇩🇰',name:'デンマーククローネ',en:'Danish Krone',sym:'kr',country:'デンマーク Denmark',kw:'グリーンランド Greenland フェロー諸島 Faroe Islands'},
+  {code:'ISK',flag:'🇮🇸',name:'アイスランドクローナ',en:'Iceland Krona',sym:'kr',country:'アイスランド Iceland'},
+  {code:'PLN',flag:'🇵🇱',name:'ズロチ',en:'Zloty',sym:'zł',country:'ポーランド Poland'},
+  {code:'CZK',flag:'🇨🇿',name:'チェココルナ',en:'Czech Koruna',sym:'Kč',country:'チェコ Czech Republic',kw:'Czechia プラハ Prague'},
+  {code:'HUF',flag:'🇭🇺',name:'ハンガリー フォリント',en:'Hungarian Forint',sym:'Ft',country:'ハンガリー Hungary'},
+  {code:'RON',flag:'🇷🇴',name:'ルーマニア レウ',en:'Romanian Leu',sym:'lei',country:'ルーマニア Romania'},
+  {code:'BGN',flag:'🇧🇬',name:'ブルガリア レフ',en:'Bulgarian Lev',sym:'лв',country:'ブルガリア Bulgaria',kw:'レフ Lev'},
+  {code:'RSD',flag:'🇷🇸',name:'セルビア ディナール',en:'Serbian Dinar',sym:'дин.',country:'セルビア Serbia'},
+  {code:'HRK',flag:'🇭🇷',name:'クロアチア クーナ',en:'Croatian Kuna',sym:'kn',country:'クロアチア Croatia',kw:'クーナ Kuna'},
+  {code:'BAM',flag:'🇧🇦',name:'ボスニア マルク',en:'Convertible Mark',sym:'KM',country:'ボスニア・ヘルツェゴビナ Bosnia and Herzegovina'},
+  {code:'MKD',flag:'🇲🇰',name:'北マケドニア デナル',en:'Macedonian Denar',sym:'ден',country:'北マケドニア North Macedonia'},
+  {code:'ALL',flag:'🇦🇱',name:'アルバニア レク',en:'Albanian Lek',sym:'L',country:'アルバニア Albania'},
+  {code:'MDL',flag:'🇲🇩',name:'モルドバ レウ',en:'Moldovan Leu',sym:'L',country:'モルドバ Moldova'},
+  {code:'UAH',flag:'🇺🇦',name:'ウクライナ フリブニャ',en:'Ukrainian Hryvnia',sym:'₴',country:'ウクライナ Ukraine'},
+  {code:'BYN',flag:'🇧🇾',name:'ベラルーシルーブル',en:'Belarusian Ruble',sym:'Br',country:'ベラルーシ Belarus'},
+  {code:'RUB',flag:'🇷🇺',name:'ロシアルーブル',en:'Russian Ruble',sym:'₽',country:'ロシア Russia'},
+  {code:'GIP',flag:'🇬🇮',name:'ジブラルタルポンド',en:'Gibraltar Pound',sym:'£',country:'ジブラルタル Gibraltar'},
+  // --- 北米・中米・カリブ ---
+  {code:'USD',flag:'🇺🇸',name:'ドル',en:'US Dollar',sym:'$',country:'アメリカ United States',kw:'米ドル 米国 USA ハワイ Hawaii グアム Guam サイパン Saipan エクアドル Ecuador エルサルバドル El Salvador パナマ Panama プエルトリコ Puerto Rico'},
+  {code:'CAD',flag:'🇨🇦',name:'CAドル',en:'Canadian Dollar',sym:'C$',country:'カナダ Canada'},
+  {code:'MXN',flag:'🇲🇽',name:'メキシコペソ',en:'Mexican Peso',sym:'$',country:'メキシコ Mexico'},
+  {code:'GTQ',flag:'🇬🇹',name:'ケツァル',en:'Quetzal',sym:'Q',country:'グアテマラ Guatemala'},
+  {code:'HNL',flag:'🇭🇳',name:'レンピラ',en:'Lempira',sym:'L',country:'ホンジュラス Honduras'},
+  {code:'NIO',flag:'🇳🇮',name:'コルドバオロ',en:'Cordoba Oro',sym:'C$',country:'ニカラグア Nicaragua'},
+  {code:'CRC',flag:'🇨🇷',name:'コスタリカコロン',en:'Costa Rican Colon',sym:'₡',country:'コスタリカ Costa Rica'},
+  {code:'PAB',flag:'🇵🇦',name:'バルボア',en:'Balboa',sym:'B/.',country:'パナマ Panama'},
+  {code:'SVC',flag:'🇸🇻',name:'サルバドールコロン',en:'El Salvador Colon',sym:'₡',country:'エルサルバドル El Salvador'},
+  {code:'BZD',flag:'🇧🇿',name:'ベリーズドル',en:'Belize Dollar',sym:'BZ$',country:'ベリーズ Belize'},
+  {code:'DOP',flag:'🇩🇴',name:'ドミニカペソ',en:'Dominican Peso',sym:'RD$',country:'ドミニカ共和国 Dominican Republic'},
+  {code:'CUP',flag:'🇨🇺',name:'キューバペソ',en:'Cuban Peso',sym:'$',country:'キューバ Cuba'},
+  {code:'JMD',flag:'🇯🇲',name:'ジャマイカドル',en:'Jamaican Dollar',sym:'J$',country:'ジャマイカ Jamaica'},
+  {code:'HTG',flag:'🇭🇹',name:'グールド',en:'Gourde',sym:'G',country:'ハイチ Haiti'},
+  {code:'BSD',flag:'🇧🇸',name:'バハマドル',en:'Bahamian Dollar',sym:'B$',country:'バハマ Bahamas'},
+  {code:'BBD',flag:'🇧🇧',name:'バルバドスドル',en:'Barbados Dollar',sym:'Bds$',country:'バルバドス Barbados'},
+  {code:'TTD',flag:'🇹🇹',name:'トリニダードトバゴドル',en:'Trinidad and Tobago Dollar',sym:'TT$',country:'トリニダード・トバゴ Trinidad and Tobago'},
+  {code:'XCD',flag:'',name:'東カリブドル',en:'East Caribbean Dollar',sym:'EC$',country:'東カリブ East Caribbean',kw:'セントルシア Saint Lucia グレナダ Grenada アンティグア・バーブーダ Antigua and Barbuda ドミニカ国 Dominica セントビンセント Saint Vincent セントクリストファー・ネービス Saint Kitts and Nevis アンギラ Anguilla モントセラト Montserrat'},
+  {code:'XCG',flag:'',name:'カリブギルダー',en:'Caribbean Guilder',sym:'Cg',country:'キュラソー Curacao',kw:'シント・マールテン Sint Maarten'},
+  {code:'AWG',flag:'🇦🇼',name:'アルバフロリン',en:'Aruban Florin',sym:'Afl.',country:'アルバ Aruba'},
+  {code:'KYD',flag:'🇰🇾',name:'ケイマン諸島ドル',en:'Cayman Islands Dollar',sym:'CI$',country:'ケイマン諸島 Cayman Islands'},
+  {code:'BMD',flag:'🇧🇲',name:'バミューダドル',en:'Bermudian Dollar',sym:'BD$',country:'バミューダ Bermuda'},
+  // --- 南米 ---
+  {code:'BRL',flag:'🇧🇷',name:'ブラジルレアル',en:'Brazilian Real',sym:'R$',country:'ブラジル Brazil',kw:'レアル Real'},
+  {code:'ARS',flag:'🇦🇷',name:'アルゼンチンペソ',en:'Argentine Peso',sym:'$',country:'アルゼンチン Argentina'},
+  {code:'CLP',flag:'🇨🇱',name:'チリペソ',en:'Chilean Peso',sym:'$',country:'チリ Chile'},
+  {code:'COP',flag:'🇨🇴',name:'コロンビアペソ',en:'Colombian Peso',sym:'$',country:'コロンビア Colombia'},
+  {code:'PEN',flag:'🇵🇪',name:'ソル',en:'Sol',sym:'S/',country:'ペルー Peru'},
+  {code:'UYU',flag:'🇺🇾',name:'ウルグアイペソ',en:'Peso Uruguayo',sym:'$U',country:'ウルグアイ Uruguay'},
+  {code:'PYG',flag:'🇵🇾',name:'グアラニー',en:'Guarani',sym:'₲',country:'パラグアイ Paraguay'},
+  {code:'BOB',flag:'🇧🇴',name:'ボリビアーノ',en:'Boliviano',sym:'Bs',country:'ボリビア Bolivia'},
+  {code:'VES',flag:'🇻🇪',name:'ボリバルソベラノ',en:'Bolívar Soberano',sym:'Bs.',country:'ベネズエラ Venezuela'},
+  {code:'VED',flag:'🇻🇪',name:'ボリバルソベラノ（デジタル）',en:'Bolívar Soberano',country:'ベネズエラ Venezuela',kw:'デジタル digital'},
+  {code:'GYD',flag:'🇬🇾',name:'ガイアナドル',en:'Guyana Dollar',sym:'G$',country:'ガイアナ Guyana'},
+  {code:'SRD',flag:'🇸🇷',name:'スリナムドル',en:'Surinam Dollar',sym:'$',country:'スリナム Suriname'},
+  {code:'FKP',flag:'🇫🇰',name:'フォークランド諸島ポンド',en:'Falkland Islands Pound',sym:'£',country:'フォークランド諸島 Falkland Islands'},
+  // --- アフリカ ---
+  {code:'ZAR',flag:'🇿🇦',name:'ランド',en:'Rand',sym:'R',country:'南アフリカ South Africa'},
+  {code:'EGP',flag:'🇪🇬',name:'エジプトポンド',en:'Egyptian Pound',sym:'E£',country:'エジプト Egypt'},
+  {code:'MAD',flag:'🇲🇦',name:'モロッコディルハム',en:'Moroccan Dirham',sym:'DH',country:'モロッコ Morocco'},
+  {code:'TND',flag:'🇹🇳',name:'チュニジアディナール',en:'Tunisian Dinar',sym:'DT',country:'チュニジア Tunisia'},
+  {code:'DZD',flag:'🇩🇿',name:'アルジェリアディナール',en:'Algerian Dinar',sym:'DA',country:'アルジェリア Algeria'},
+  {code:'LYD',flag:'🇱🇾',name:'リビアディナール',en:'Libyan Dinar',sym:'LD',country:'リビア Libya'},
+  {code:'KES',flag:'🇰🇪',name:'ケニアシリング',en:'Kenyan Shilling',sym:'KSh',country:'ケニア Kenya'},
+  {code:'TZS',flag:'🇹🇿',name:'タンザニアシリング',en:'Tanzanian Shilling',sym:'TSh',country:'タンザニア Tanzania'},
+  {code:'UGX',flag:'🇺🇬',name:'ウガンダシリング',en:'Uganda Shilling',sym:'USh',country:'ウガンダ Uganda'},
+  {code:'ETB',flag:'🇪🇹',name:'ブル',en:'Ethiopian Birr',sym:'Br',country:'エチオピア Ethiopia'},
+  {code:'RWF',flag:'🇷🇼',name:'ルワンダフラン',en:'Rwanda Franc',sym:'RF',country:'ルワンダ Rwanda'},
+  {code:'BIF',flag:'🇧🇮',name:'ブルンジフラン',en:'Burundi Franc',sym:'FBu',country:'ブルンジ Burundi'},
+  {code:'GHS',flag:'🇬🇭',name:'セディ',en:'Ghana Cedi',sym:'GH₵',country:'ガーナ Ghana'},
+  {code:'NGN',flag:'🇳🇬',name:'ナイラ',en:'Naira',sym:'₦',country:'ナイジェリア Nigeria'},
+  {code:'XOF',flag:'',name:'CFAフラン（西アフリカ）',en:'CFA Franc BCEAO',sym:'CFA',country:'西アフリカ West Africa',kw:'セネガル Senegal コートジボワール Cote d\'Ivoire Ivory Coast マリ Mali ブルキナファソ Burkina Faso ベナン Benin トーゴ Togo ニジェール Niger ギニアビサウ Guinea-Bissau'},
+  {code:'XAF',flag:'',name:'CFAフラン（中部アフリカ）',en:'CFA Franc BEAC',sym:'FCFA',country:'中部アフリカ Central Africa',kw:'カメルーン Cameroon ガボン Gabon チャド Chad コンゴ共和国 Congo 中央アフリカ Central African Republic 赤道ギニア Equatorial Guinea'},
+  {code:'GMD',flag:'🇬🇲',name:'ダラシ',en:'Dalasi',sym:'D',country:'ガンビア Gambia'},
+  {code:'GNF',flag:'🇬🇳',name:'ギニアフラン',en:'Guinean Franc',sym:'FG',country:'ギニア Guinea'},
+  {code:'SLE',flag:'🇸🇱',name:'レオン',en:'Leone',sym:'Le',country:'シエラレオネ Sierra Leone'},
+  {code:'LRD',flag:'🇱🇷',name:'リベリアドル',en:'Liberian Dollar',sym:'L$',country:'リベリア Liberia'},
+  {code:'CVE',flag:'🇨🇻',name:'カーボベルデエスクード',en:'Cabo Verde Escudo',sym:'Esc',country:'カーボベルデ Cabo Verde',kw:'Cape Verde'},
+  {code:'STN',flag:'🇸🇹',name:'ドブラ',en:'Dobra',sym:'Db',country:'サントメ・プリンシペ Sao Tome and Principe'},
+  {code:'MRU',flag:'🇲🇷',name:'ウギア',en:'Ouguiya',sym:'UM',country:'モーリタニア Mauritania'},
+  {code:'SDG',flag:'🇸🇩',name:'スーダンポンド',en:'Sudanese Pound',country:'スーダン Sudan'},
+  {code:'SSP',flag:'🇸🇸',name:'南スーダンポンド',en:'South Sudanese Pound',country:'南スーダン South Sudan'},
+  {code:'ERN',flag:'🇪🇷',name:'ナクファ',en:'Nakfa',sym:'Nfk',country:'エリトリア Eritrea'},
+  {code:'DJF',flag:'🇩🇯',name:'ジブチフラン',en:'Djibouti Franc',sym:'Fdj',country:'ジブチ Djibouti'},
+  {code:'SOS',flag:'🇸🇴',name:'ソマリアシリング',en:'Somali Shilling',sym:'Sh',country:'ソマリア Somalia'},
+  {code:'KMF',flag:'🇰🇲',name:'コモロフラン',en:'Comorian Franc',sym:'CF',country:'コモロ Comoros'},
+  {code:'MGA',flag:'🇲🇬',name:'アリアリ',en:'Malagasy Ariary',sym:'Ar',country:'マダガスカル Madagascar'},
+  {code:'MUR',flag:'🇲🇺',name:'モーリシャスルピー',en:'Mauritius Rupee',sym:'Rs',country:'モーリシャス Mauritius'},
+  {code:'SCR',flag:'🇸🇨',name:'セーシェルルピー',en:'Seychelles Rupee',sym:'SR',country:'セーシェル Seychelles'},
+  {code:'MWK',flag:'🇲🇼',name:'マラウイクワチャ',en:'Malawi Kwacha',sym:'MK',country:'マラウイ Malawi'},
+  {code:'ZMW',flag:'🇿🇲',name:'ザンビアクワチャ',en:'Zambian Kwacha',sym:'ZK',country:'ザンビア Zambia'},
+  {code:'ZWG',flag:'🇿🇼',name:'ジンバブエゴールド',en:'Zimbabwe Gold',sym:'ZiG',country:'ジンバブエ Zimbabwe'},
+  {code:'MZN',flag:'🇲🇿',name:'メティカル',en:'Mozambique Metical',sym:'MT',country:'モザンビーク Mozambique'},
+  {code:'AOA',flag:'🇦🇴',name:'クワンザ',en:'Kwanza',sym:'Kz',country:'アンゴラ Angola'},
+  {code:'CDF',flag:'🇨🇩',name:'コンゴフラン',en:'Congolese Franc',sym:'FC',country:'コンゴ民主共和国 Democratic Republic of the Congo',kw:'DR Congo DRC'},
+  {code:'BWP',flag:'🇧🇼',name:'プラ',en:'Pula',sym:'P',country:'ボツワナ Botswana'},
+  {code:'NAD',flag:'🇳🇦',name:'ナミビアドル',en:'Namibia Dollar',sym:'N$',country:'ナミビア Namibia'},
+  {code:'SZL',flag:'🇸🇿',name:'リランゲニ',en:'Lilangeni',sym:'E',country:'エスワティニ Eswatini',kw:'スワジランド Swaziland'},
+  {code:'LSL',flag:'🇱🇸',name:'ロチ',en:'Loti',sym:'L',country:'レソト Lesotho'},
+  {code:'SHP',flag:'🇸🇭',name:'セントヘレナポンド',en:'Saint Helena Pound',sym:'£',country:'セントヘレナ Saint Helena'},
+  // --- オセアニア ---
+  {code:'AUD',flag:'🇦🇺',name:'豪ドル',en:'Australian Dollar',sym:'A$',country:'オーストラリア Australia',kw:'キリバス Kiribati ツバル Tuvalu ナウル Nauru'},
+  {code:'NZD',flag:'🇳🇿',name:'NZドル',en:'New Zealand Dollar',sym:'NZ$',country:'ニュージーランド New Zealand',kw:'クック諸島 Cook Islands ニウエ Niue'},
+  {code:'FJD',flag:'🇫🇯',name:'フィジードル',en:'Fiji Dollar',sym:'FJ$',country:'フィジー Fiji'},
+  {code:'XPF',flag:'',name:'CFPフラン',en:'CFP Franc',sym:'F',country:'フランス領ポリネシア French Polynesia',kw:'タヒチ Tahiti ニューカレドニア New Caledonia ウォリス・フツナ Wallis and Futuna'},
+  {code:'PGK',flag:'🇵🇬',name:'キナ',en:'Kina',sym:'K',country:'パプアニューギニア Papua New Guinea'},
+  {code:'WST',flag:'🇼🇸',name:'タラ',en:'Tala',sym:'WS$',country:'サモア Samoa'},
+  {code:'TOP',flag:'🇹🇴',name:'パアンガ',en:'Pa’anga',sym:'T$',country:'トンガ Tonga'},
+  {code:'VUV',flag:'🇻🇺',name:'バツ',en:'Vatu',sym:'VT',country:'バヌアツ Vanuatu'},
+  {code:'SBD',flag:'🇸🇧',name:'ソロモン諸島ドル',en:'Solomon Islands Dollar',sym:'SI$',country:'ソロモン諸島 Solomon Islands'},
 ];
-// 「よく使われる通貨」の表示順
-const COMMON_CURR=['JPY','USD','EUR','GBP','CNY','HKD','KRW','TWD','SGD','THB','AUD','CAD'];
+// 「よく使われる通貨」の表示順。先頭12件は従来の並びを維持し、その後ろへ12件を追加（計24件）
+const COMMON_CURR=['JPY','USD','EUR','GBP','CNY','HKD','KRW','TWD','SGD','THB','AUD','CAD',
+  'CHF','NZD','VND','MYR','IDR','PHP','INR','AED','TRY','BRL','MXN','ZAR'];
+// type="module"はトップレベル宣言をwindowへ公開しないため、テスト・検証用に明示公開する（読み取り専用の静的データ）
+Object.assign(window,{CURR,COMMON_CURR});
 
 let GID=null, members=[], expenses=[], rates={}, roundUnit=1;
 let subs=[];
@@ -604,8 +767,13 @@ function attachAmountInput(inp){
 }
 
 // ===== 通貨の最小単位（小数桁） =====
-// JPY/KRWは小数0桁、その他の登録通貨は小数2桁
-const CUR_DECIMALS={JPY:0,KRW:0};
+// ISO 4217 List One（2026-01-01公表、2026-07-26確認）の最小単位（Minor unit）に準拠。
+// 未記載の通貨は従来どおり小数2桁として扱う（既存データ互換：JPY/KRW=0桁、他は2桁のまま変更なし）
+const CUR_DECIMALS={
+  JPY:0,KRW:0,
+  BIF:0,CLP:0,DJF:0,GNF:0,ISK:0,KMF:0,PYG:0,RWF:0,UGX:0,VND:0,VUV:0,XAF:0,XOF:0,XPF:0,
+  BHD:3,IQD:3,JOD:3,KWD:3,LYD:3,OMR:3,TND:3
+};
 function curDecimals(code){return CUR_DECIMALS[code]!==undefined?CUR_DECIMALS[code]:2;}
 function minorFactor(code){return Math.pow(10,curDecimals(code));}
 // 金額（通常単位）→最小通貨単位の整数。既存データの過剰な小数もここで丸める
@@ -680,22 +848,34 @@ function setCurrencyField(inputId,code){
   if(changed&&splitCurrencyHooks[inputId])splitCurrencyHooks[inputId]();
 }
 let curPickerTarget=null;
-function currencyMatches(c,q){
-  const s=q.toLowerCase();
-  return c.code.toLowerCase().indexOf(s)>=0
-    ||(c.name||'').toLowerCase().indexOf(s)>=0
-    ||(c.en||'').toLowerCase().indexOf(s)>=0
-    ||(c.country||'').toLowerCase().indexOf(s)>=0;
+// 検索文字列の正規化：全角英数記号→半角、全角スペース→半角、小文字化、前後空白除去、連続空白の圧縮
+function normSearchText(s){
+  return String(s==null?'':s)
+    .replace(/[！-～]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0))
+    .replace(/￥/g,'¥')
+    .replace(/　/g,' ')
+    .toLowerCase()
+    .replace(/\s+/g,' ')
+    .trim();
 }
+// コード・日本語名・英語名・国地域名・記号・別名を横断検索。
+// 空白区切りの複数語はAND条件（例：「brazilian real」「ブラジル レアル」）
+function currencyMatches(c,q){
+  const hay=normSearchText([c.code,c.name,c.en,c.country,c.sym,c.kw].filter(Boolean).join(' '));
+  return q.split(' ').every(t=>hay.indexOf(t)>=0);
+}
+// 「その他の通貨」の展開状態。通貨数が多いため初期表示では折りたたみ、モーダルを開くたびに戻す
+let curListExpanded=false;
 function renderCurrencyList(q){
   const list=document.getElementById('cur-list');
   const target=curPickerTarget?document.getElementById(curPickerTarget):null;
   const current=target?target.value:null;
-  const query=(q||'').trim();
+  const query=normSearchText(q);
   const item=c=>`<button type="button" class="cur-item${c.code===current?' sel':''}" data-cur="${esc(c.code)}">
       <span style="font-size:18px">${c.flag||'💱'}</span>
       <span class="cur-code">${esc(c.code)}</span>
       <span class="cur-name">${esc(c.name)}${c.en?' / '+esc(c.en):''}</span>
+      ${c.sym?`<span class="cur-sym">${esc(c.sym)}</span>`:''}
       ${c.code===current?'<i class="ti ti-check" style="color:#1d4ed8;font-size:18px"></i>':''}
     </button>`;
   let html='';
@@ -704,12 +884,19 @@ function renderCurrencyList(q){
     if(recent.length)html+='<div class="cur-sec">最近使った通貨</div>'+recent.map(item).join('');
     const common=COMMON_CURR.map(code=>CURR.find(c=>c.code===code)).filter(Boolean);
     html+='<div class="cur-sec">よく使われる通貨</div>'+common.map(item).join('');
-    html+='<div class="cur-sec">すべての通貨</div>'+CURR.map(item).join('');
+    // その他の通貨は件数が多いため折りたたみ。検索でも探せる
+    const rest=CURR.filter(c=>COMMON_CURR.indexOf(c.code)<0);
+    html+='<div class="cur-sec">その他の通貨</div>';
+    if(curListExpanded)html+=rest.map(item).join('');
+    else html+=`<button type="button" class="cur-more" id="cur-more">その他の通貨をすべて表示（${rest.length}通貨）</button>`;
   }else{
+    // CURRは通貨コード一意のため検索結果に同一通貨は重複しない
     const filtered=CURR.filter(c=>currencyMatches(c,query));
     html=filtered.length?filtered.map(item).join(''):'<div style="padding:20px 16px;color:#999;font-size:13px">見つかりませんでした</div>';
   }
   list.innerHTML=html;
+  const more=document.getElementById('cur-more');
+  if(more)more.addEventListener('click',()=>{curListExpanded=true;renderCurrencyList(document.getElementById('cur-search').value);});
   list.querySelectorAll('[data-cur]').forEach(btn=>{
     btn.addEventListener('click',()=>{
       if(curPickerTarget)setCurrencyField(curPickerTarget,btn.dataset.cur);
@@ -719,6 +906,7 @@ function renderCurrencyList(q){
 }
 function openCurrencyModal(inputId){
   curPickerTarget=inputId;
+  curListExpanded=false;
   document.getElementById('cur-search').value='';
   renderCurrencyList('');
   document.getElementById('cur-bg').style.display='flex';
@@ -1802,7 +1990,7 @@ function renderRates(){
       </div>
       <div style="display:flex;align-items:center;gap:5px">
         <span style="font-size:12px;color:#aaa">1${code}=</span>
-        <input type="number" step="0.01" placeholder="0.00" value="${rates[code]||''}" data-rc="${code}" style="width:88px;font-size:15px">
+        <input type="number" step="any" placeholder="0.00" value="${rates[code]||''}" data-rc="${code}" style="width:88px;font-size:15px">
         <span style="font-size:12px;color:#aaa">円</span>
       </div>
     </div>`;
