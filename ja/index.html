@@ -25,6 +25,57 @@
 <meta name="twitter:description" content="登録不要ですぐ使える、傾斜精算・外貨対応の立替精算アプリ">
 <meta name="twitter:image" content="https://owesum-app.github.io/assets/images/owesum-ogp.png?v=20260725-2">
 <meta name="twitter:image:alt" content="OweSum 飲み会も旅行も簡単に精算">
+<script>
+// ===== Google Analytics 4（プライバシー配慮設定） =====
+// 方針：集計された利用状況（閲覧数・訪問者数・グループ作成成功数）だけを計測する。
+// ・自動page_viewは停止し、クエリ（?g=グループID等）とハッシュを除いた安全なURLだけを手動送信する
+// ・グループ名・メンバー名・支払い内容・金額・グループID等の入力内容は一切送信しない
+// ・広告・リマーケティング・Google Signals・ユーザーID等の個人単位の計測は行わない
+// ・gtag.jsが読み込めない環境（広告ブロッカー・通信障害等）でも本体機能に影響しない
+(function(){
+'use strict';
+var GA_ID='G-BG875EQN2K'; // 測定IDの記載はこの1箇所のみ（二重configや二重計測を防ぐ）
+// 安全なURLだけを送るための固定値。gtag.jsは既定で全イベントに現在URL（?g=グループID等を含む）を
+// 添付するため、config段階でクエリ・ハッシュを除いた値へ上書きし、内部イベント（session_start等）にも
+// グループIDが載らないようにする。
+var SAFE_LOC=location.origin+location.pathname;
+var SAFE_TITLE='OweSum';
+var SAFE_REF='';
+try{
+  if(document.referrer){
+    var u=new URL(document.referrer);
+    SAFE_REF=u.origin+u.pathname; // 参照元もクエリ・ハッシュを除去。解析不能なら空のまま
+  }
+}catch(e){SAFE_REF='';}
+window.dataLayer=window.dataLayer||[];
+function gtag(){window.dataLayer.push(arguments);}
+window.gtag=gtag;
+gtag('js',new Date());
+gtag('config',GA_ID,{send_page_view:false,page_title:SAFE_TITLE,page_location:SAFE_LOC,page_referrer:SAFE_REF});
+// 安全な送信窓口：イベント名と固定の安全な値だけを渡す。gtagが使えない状態でも静かに終了する。
+// 全イベントへ安全なpage_location等を明示し、gtag既定の「現在URLを添付」を確実に無効化する。
+// 注意：ここへグループ名・金額・ID等の利用者データを渡すコードを追加しないこと。
+window.owesumTrack=function(name,params){
+  try{
+    if(typeof window.gtag!=='function')return;
+    var p=params||{};
+    if(p.page_location===undefined)p.page_location=SAFE_LOC;
+    if(p.page_title===undefined)p.page_title=SAFE_TITLE;
+    if(p.page_referrer===undefined)p.page_referrer=SAFE_REF;
+    window.gtag('event',name,p);
+  }catch(e){/* 計測失敗はアプリ動作に影響させない */}
+};
+// page_view手動送信（1回だけ）
+if(!window.__owesumPvSent){
+  window.__owesumPvSent=true;
+  window.owesumTrack('page_view',{});
+}
+var s=document.createElement('script');
+s.async=true;
+s.src='https://www.googletagmanager.com/gtag/js?id='+GA_ID;
+document.head.appendChild(s);
+})();
+</script>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
@@ -102,6 +153,13 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 #restore-sp-wrap{display:none;text-align:center;padding:18px 0 6px}
 .restore-link{background:none;border:none;font-family:inherit;font-size:12.5px;color:#64748b;text-decoration:underline;text-underline-offset:3px;padding:8px 10px;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
 .restore-link:active{opacity:.7}
+/* アクセス解析の常設説明（同意バナーではなく公表ベースの控えめな開閉式表示） */
+#analytics-note{margin:4px 0 10px;font-size:11px;color:#64748b}
+#analytics-note summary{cursor:pointer;list-style:none;display:inline-block;padding:6px 0;font-size:11.5px;color:#64748b;text-decoration:underline;text-underline-offset:3px}
+#analytics-note summary::-webkit-details-marker{display:none}
+#analytics-note .analytics-note-body{margin-top:4px;text-align:left;line-height:1.7;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;color:#475569;max-width:340px}
+#analytics-note a{color:#2563eb}
+@media (max-width:767px){#analytics-note{text-align:center;padding:0 16px}#analytics-note .analytics-note-body{max-width:none}}
 /* 精算結果を共有するボタン */
 .btn-share-settle{margin-top:14px}
 /* トースト通知 */
@@ -253,6 +311,13 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <div id="restore-sp-wrap">
         <button type="button" class="restore-link" id="btn-restore-sp"><i class="ti ti-file-import" style="font-size:15px"></i>バックアップファイルから復元する</button>
       </div>
+      <!-- 外部送信（Google Analytics）の公表。入力内容を送信しない設計であることを利用者へ説明する -->
+      <details id="analytics-note">
+        <summary>アクセス解析について</summary>
+        <div class="analytics-note-body">
+          OweSumはサービス改善のため、Google Analyticsでページの閲覧数などの利用状況を集計しています。計測にはCookie等が利用される場合があります。グループ名・メンバー名・支払い内容・金額・グループIDなどの入力内容は、Googleへ送信しない設計です。計測データの取り扱いには<a href="https://policies.google.com/technologies/partner-sites" target="_blank" rel="noopener">Googleのパートナーサイトポリシー</a>と<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Googleプライバシーポリシー</a>が適用されます。
+        </div>
+      </details>
     </div>
     <div class="hero-media">
       <picture>
@@ -1104,6 +1169,8 @@ async function createGroupByName(name){
   try{
     const {data,error}=await db.from('groups').insert({name}).select().single();
     if(error){await ask('作成失敗: '+error.message);return false;}
+    // 計測：グループ作成の成功だけを匿名で1回記録（グループ名・ID等のパラメータは付けない）
+    if(typeof window.owesumTrack==='function')window.owesumTrack('group_created');
     const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
     ids.push(data.id);
     localStorage.setItem('narika_gids',JSON.stringify(ids));
