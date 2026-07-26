@@ -13,6 +13,54 @@ if (!fs.existsSync(SHOT)) fs.mkdirSync(SHOT);
 let PASS = 0, FAIL = 0; const fails = [];
 function ok(name, cond, extra) { if (cond) { PASS++; } else { FAIL++; fails.push(name + (extra ? ' :: ' + extra : '')); console.log('  FAIL: ' + name + (extra ? ' :: ' + extra : '')); } }
 
+// ===== 外部通信ガード（GA4導入に伴い追加） =====
+// ja/index.htmlがgtag.jsを読み込むため、テスト実行時にGoogleへ実送信されないよう全contextで
+// Google系ドメインを横取りする（gtag.js本体は空JSを200で返却、collect等は204。外部へは通過させない）。
+// 本スイートはSupabaseへのHTTPを発行しない構成だが、取りこぼし防止のフォールバック遮断も併設する。
+// 終了時のreportNetGuard()が「観測件数＝横取り件数」を検査し、外部通過があればFAILとして記録する
+// （通過ゼロなら件数ログのみを出し、既存の期待PASS件数は変えない）。
+const NETG = { gaObserved: 0, gaCaptured: 0, supaObserved: 0, supaFallback: 0, otherExternal: [] };
+const GA_HOST_RE = /(\.|^)(googletagmanager\.com|google-analytics\.com|analytics\.google\.com|google\.com|doubleclick\.net|googleadservices\.com|googlesyndication\.com|gstatic\.com)$/;
+const SUPA_HOST_RE = /(\.|^)supabase\.co$/;
+const KNOWN_HOST_RE = /^(localhost|127\.0\.0\.1|esm\.sh|cdn\.jsdelivr\.net)$/;
+async function installNetGuard(ctx) {
+  // 最初のページを開く前に登録する。後から登録されるスイート固有ルートの方が優先される。
+  await ctx.route(u => GA_HOST_RE.test(u.hostname), route => {
+    NETG.gaCaptured++;
+    if (route.request().url().includes('/gtag/js')) return route.fulfill({ status: 200, contentType: 'application/javascript', body: '/* e2e guard: gtag.js blocked */' });
+    return route.fulfill({ status: 204, body: '' });
+  });
+  await ctx.route(u => SUPA_HOST_RE.test(u.hostname), route => {
+    NETG.supaFallback++;
+    if (route.request().method() === 'GET') return route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
+    return route.fulfill({ status: 403, contentType: 'application/json', body: '{"message":"blocked by e2e guard"}' });
+  });
+  // route()はWebSocketを横取りできないため、realtime実接続はスタブで防ぐ
+  await ctx.addInitScript(() => {
+    try {
+      window.WebSocket = class {
+        constructor() { this.readyState = 3; }
+        addEventListener() {} removeEventListener() {} send() {} close() {}
+        set onopen(v) {} set onclose(v) {} set onerror(v) {} set onmessage(v) {}
+      };
+    } catch (e) {}
+  });
+  ctx.on('request', req => {
+    // mailto:等の非HTTPプロトコル遷移はネットワーク送信ではないため対象外
+    let h; try { const u = new URL(req.url()); if (u.protocol !== 'http:' && u.protocol !== 'https:') return; h = u.hostname; } catch (e) { return; }
+    if (GA_HOST_RE.test(h)) NETG.gaObserved++;
+    else if (SUPA_HOST_RE.test(h)) NETG.supaObserved++;
+    else if (!KNOWN_HOST_RE.test(h)) NETG.otherExternal.push(req.method() + ' ' + req.url());
+  });
+}
+function reportNetGuard() {
+  const passed = NETG.gaObserved - NETG.gaCaptured;
+  if (passed !== 0) ok('[netguard] Google向け通信が外部へ通過していない', false, `observed=${NETG.gaObserved} captured=${NETG.gaCaptured}`);
+  if (NETG.gaObserved === 0) ok('[netguard] Google向け通信を観測できている（ガードの実効性確認）', false, 'gtag.js読込みが1件も観測されなかった');
+  if (NETG.otherExternal.length !== 0) ok('[netguard] 想定外の外部通信0件', false, NETG.otherExternal.slice(0, 5).join(' || '));
+  console.log(`[netguard] Google捕捉=${NETG.gaCaptured} Google外部通過=${passed} Supabase観測=${NETG.supaObserved}（うちフォールバック横取り=${NETG.supaFallback}） 想定外外部通信=${NETG.otherExternal.length}`);
+}
+
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]);
   if (p.endsWith('/')) p += 'index.html';
@@ -89,6 +137,7 @@ function parseYen(text) { const m = [...text.matchAll(/([\d,]+)円/g)].map(x => 
 
   async function open(viewport) {
     const ctx = await browser.newContext({ viewport, permissions: ['clipboard-read', 'clipboard-write'] });
+    await installNetGuard(ctx);
     await ctx.addInitScript(INIT);
     const page = await ctx.newPage();
     page.on('console', m => { if (m.type() === 'error') page.evaluate(t => window.__consoleErrors.push(t), m.text()).catch(() => {}); });
@@ -334,6 +383,7 @@ function parseYen(text) { const m = [...text.matchAll(/([\d,]+)円/g)].map(x => 
   // ---------- スモーク（非対応環境でコピーフォールバック） ----------
   {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await installNetGuard(ctx);
     await ctx.addInitScript(() => {
       window.__copyCalls = [];
       try { Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: t => { window.__copyCalls.push(t); return Promise.resolve(); } } }); } catch (e) {}
@@ -356,6 +406,7 @@ function parseYen(text) { const m = [...text.matchAll(/([\d,]+)円/g)].map(x => 
   // ---------- PC 1280x800 スクショ ----------
   {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+    await installNetGuard(ctx);
     const page = await ctx.newPage();
     await page.goto(BASE, { waitUntil: 'load' });
     await page.waitForFunction(() => typeof window.computeSettlements === 'function', { timeout: 15000 });
@@ -366,6 +417,7 @@ function parseYen(text) { const m = [...text.matchAll(/([\d,]+)円/g)].map(x => 
 
   await browser.close();
   server.close();
+  reportNetGuard();
   console.log(`\n==== E2E結果: PASS ${PASS} / FAIL ${FAIL} ====`);
   if (fails.length) { console.log('失敗一覧:'); fails.forEach(f => console.log(' - ' + f)); process.exit(1); }
   process.exit(0);
