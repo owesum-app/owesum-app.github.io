@@ -1275,14 +1275,29 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
     return;
   }
   if(data.app!=='narika'||!data.group_name){await ask('このアプリのバックアップファイルではないようです。');return;}
-  // versionの検証：なし→1として受理／1・2→受理／3以上・文字列・小数・負数・nullなどは復元開始前に拒否
+  // versionの検証：なし→1として受理／1・2・3→受理／4以上・文字列・小数・負数・nullなどは復元開始前に拒否
   const ver=('version' in data)?data.version:1;
-  if(ver!==1&&ver!==2){
+  if(ver!==1&&ver!==2&&ver!==3){
     await ask(`このバックアップのバージョン（${String(ver)}）には対応していません。\n復元を中止しました。`);
     return;
   }
-  // version 2は分け方情報を復元開始前に検証し、1件でも不正ならグループを作らず中止する
-  if(ver===2&&Array.isArray(data.expenses)){
+  // 基準通貨の検証：version1・2は常にJPY（バックアップJSONのbase_currencyは読まない）。
+  // version3はbase_currencyが必須で、大文字英字3文字かつアプリの通貨一覧に存在することを
+  // グループ作成前に検証する（legacy:trueの既存通貨は復元可）。欠落・null・空文字・小文字・
+  // 数値・未知コードはすべて不正としてグループを作成せず中止する（Supabase書込み・localStorage追加も0件）
+  let restoreBase;
+  if(ver===3){
+    const raw=data.base_currency;
+    restoreBase=(typeof raw==='string'&&/^[A-Z]{3}$/.test(raw)&&CURR.some(c=>c.code===raw))?raw:null;
+    if(!restoreBase){
+      await ask('このバックアップの基準通貨情報を確認できませんでした。\n復元を中止しました。');
+      return;
+    }
+  }else{
+    restoreBase='JPY';
+  }
+  // version 2・3は分け方情報を復元開始前に検証し、1件でも不正ならグループを作らず中止する
+  if((ver===2||ver===3)&&Array.isArray(data.expenses)){
     const problems=[];
     data.expenses.forEach((e,i)=>{
       const label=(e&&e.name)?e.name:`支払い${i+1}件目`;
@@ -1302,8 +1317,8 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
   const gname=data.group_name;
   if(!await ask(`「${gname}」を復元します。\n（新しいグループとして作成されます）\n\nよろしいですか？`))return;
   // 1. グループ作成
-  // 復元先も日本語版の新規グループなのでJPY基準を明示（バックアップJSONからは基準通貨を読まない）
-  const {data:g,error:ge}=await db.from('groups').insert({name:gname,base_currency:'JPY'}).select().single();
+  // 復元先の基準通貨はrestoreBaseで確定済み（version1・2はJPY、version3は検証済みのbase_currency）
+  const {data:g,error:ge}=await db.from('groups').insert({name:gname,base_currency:restoreBase}).select().single();
   if(ge){await ask('復元失敗（グループ作成）: '+ge.message);return;}
   const gid=g.id;
   groupBase[String(gid)]=normalizeGroupBase(g.base_currency);
@@ -1313,20 +1328,20 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
     const {error}=await db.from('members').insert(rows);
     if(error){await ask('復元失敗（メンバー）: '+error.message);return;}
   }
-  // 3. 支払い（version 1は全件均等、version 2は保存された分け方を復元）
+  // 3. 支払い（version 1は全件均等、version 2・3は保存された分け方を復元）
   if(Array.isArray(data.expenses)&&data.expenses.length){
     const rows=data.expenses.map(e=>{
-      const hasSplit=ver===2&&(e.split_mode==='percentage'||e.split_mode==='amount');
+      const hasSplit=(ver===2||ver===3)&&(e.split_mode==='percentage'||e.split_mode==='amount');
       return {group_id:gid,name:e.name,date:e.date,amount:e.amount,currency:e.currency,payer:e.payer,beneficiaries:e.beneficiaries,
         split_mode:hasSplit?e.split_mode:'equal',split_details:hasSplit?e.split_details:null};
     });
     const {error}=await db.from('expenses').insert(rows);
     if(error){await ask('復元失敗（支払い）: '+error.message);return;}
   }
-  // 4. 為替レート
+  // 4. 為替レート（復元先グループの基準通貨自身は除外。逆数化・換算はしない）
   if(data.rates&&typeof data.rates==='object'){
     const rows=Object.entries(data.rates)
-      .filter(([code,r])=>code!==BASE_CURRENCY&&r)
+      .filter(([code,r])=>code!==restoreBase&&r)
       .map(([code,r])=>({group_id:gid,currency:code,rate:parseFloat(r)}));
     if(rows.length){
       const {error}=await db.from('rates').insert(rows);
@@ -1640,18 +1655,22 @@ document.getElementById('btn-backup-json').addEventListener('click',async()=>{
     if(!await ask(msg,'保存を続ける'))return;
   }
   const gname=document.getElementById('g-title').textContent;
-  // version 2：割合・金額指定の支払いはsplit_mode/split_detailsを含める（均等は省略可）
+  const isJPYBase=BASE_CURRENCY==='JPY';
+  // version 2：JPY基準グループの従来形式（内容は変えない）。割合・金額指定の支払いはsplit_mode/split_detailsを含める（均等は省略可）
+  // version 3：JPY以外の基準通貨グループはbase_currencyを明示する。ratesは現在値をそのまま出力し（換算しない）、
+  // 基準通貨自身のrateは出力から除外する（本来ratesに含まれないが、安全のため明示的に除く）
   const data={
-    app:'narika',version:2,
+    app:'narika',version:isJPYBase?2:3,
     exported_at:new Date().toISOString(),
     group_name:gname,
+    ...(isJPYBase?{}:{base_currency:BASE_CURRENCY}),
     members:members.map(m=>({name:m.name})),
     expenses:expenses.map(e=>{
       const o={name:e.name,date:e.date,amount:e.amount,currency:e.currency,payer:e.payer,beneficiaries:e.beneficiaries};
       if(e.split_mode==='percentage'||e.split_mode==='amount'){o.split_mode=e.split_mode;o.split_details=e.split_details;}
       return o;
     }),
-    rates:rates
+    rates:isJPYBase?rates:Object.fromEntries(Object.entries(rates).filter(([code])=>code!==BASE_CURRENCY))
   };
   const json=JSON.stringify(data,null,2);
   const filename=`${sanitizeFilename(gname)}_バックアップ_${today()}.json`;

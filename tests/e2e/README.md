@@ -62,6 +62,27 @@ node tests/e2e/owesum_base_currency_db_e2e.js
 * 本番Supabaseへは接続しません（全ルート横取り・本番書込み0件）。Googleへの実送信・group_created実送信もありません。
 * 基準通貨は必ずDBのグループ行を正とし、URL・ブラウザ言語・localStorageでは決定しない設計を固定します。
 
+## owesum_base_currency_backup_e2e.js
+
+JSONバックアップ・復元の基準通貨対応（version 2/3）を検証するテストです。
+
+JPY基準グループのバックアップは従来どおりversion 2でbase_currencyを出力しないこと、
+JPY以外の基準通貨グループはversion 3でbase_currencyを必須出力すること、復元時に
+version 1・2は常にJPY、version 3はbase_currency（大文字英字3文字かつ通貨一覧に存在、
+legacy:true可）を検証してから復元すること、不正なbase_currency・未対応バージョン・
+不正appはグループ作成前に拒否しSupabase書込み・localStorage追加を0件にすること、
+ratesは基準通貨自身を除外し逆数化・換算しないこと、バックアップ→復元の往復で
+支払い・rates・精算結果が一致することを確認します。
+
+実行コマンド：
+
+```
+node tests/e2e/owesum_base_currency_backup_e2e.js
+```
+
+* 本番Supabaseへは接続しません（全ルート横取り・本番書込み0件）。Googleへの実送信もありません。
+* 既存のJPYバックアップ（version 2）のJSON内容・既存E2Eの期待値は変更していません。
+
 ## owesum_field_usability_e2e.js
 
 コミット7daa80aで修正した以下の範囲を確認する55件のテストです。
