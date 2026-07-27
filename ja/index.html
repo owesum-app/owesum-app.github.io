@@ -795,12 +795,14 @@ function ci(code){return CURR.find(c=>c.code===code)||{code,flag:'',name:code};}
 // ===== 基準通貨 =====
 // 精算集計・換算表示・為替タブの換算先となる通貨。日本語版はJPY固定とし、
 // DB・URL・ブラウザ設定・localStorageからは決定せず、利用者も変更できない。
-const BASE_CURRENCY='JPY';
+// 変更経路はテスト専用フック__setSettleStateの基準通貨引数のみ（省略時は必ずJPYへ戻る）。
+let BASE_CURRENCY='JPY';
 const BASE_UNIT='円'; // 基準通貨建て金額に付ける単位表示（日本語版）
 // 為替レートの意味：1通貨単位＝rate基準通貨。基準通貨自身は常に1
 function rate(code){if(code===BASE_CURRENCY)return 1;const v=parseFloat(rates[code]);return isNaN(v)||v<=0?null:v;}
-// 支払い通貨の金額→基準通貨建て金額。レート未設定はnull
-function toBase(amt,code){const r=rate(code);return r?amt*r:null;}
+// 支払い通貨の金額（主単位）→基準通貨の最小単位建て金額。レート未設定はnull
+// JPYはminorFactor=1のため従来の円建て換算と恒等
+function toBase(amt,code){const r=rate(code);return r?amt*r*minorFactor(BASE_CURRENCY):null;}
 function rnd(v,u){return Math.round(v/u)*u;}
 
 // ===== トースト通知 =====
@@ -856,10 +858,12 @@ function toMinor(amount,code){return Math.round(amount*minorFactor(code));}
 function fmtMinor(minor,code){
   return (minor/minorFactor(code)).toLocaleString('ja-JP',{maximumFractionDigits:curDecimals(code)});
 }
-// 基準通貨の最小単位へ丸める（基準通貨がJPY=0桁の間はMath.roundと同値）
-function roundBase(v){const f=minorFactor(BASE_CURRENCY);return Math.round(v*f)/f;}
-// 基準通貨建て金額の表示整形（最小単位へ丸め→桁区切り）。JPYでは従来のMath.round(v).toLocaleString()と同一表示
-function fmtBase(v){return roundBase(v).toLocaleString(undefined,{maximumFractionDigits:curDecimals(BASE_CURRENCY)});}
+// 精算エンジン内部の金額（paid/owed/bal/送金額）は「基準通貨の最小単位」建てで扱う（JPY=円、USD=セント）。
+// JPYはminorFactor=1のため従来の円建て計算と恒等になる。
+// 基準通貨の最小単位の整数へ丸める（JPYでは従来のMath.roundと同値）
+function roundBaseMinor(v){return Math.round(v);}
+// 基準通貨建て（最小単位）金額の表示整形（最小単位へ丸め→主単位で桁区切り）。JPYでは従来表示と同一
+function fmtBase(vMinor){return (roundBaseMinor(vMinor)/minorFactor(BASE_CURRENCY)).toLocaleString(undefined,{maximumFractionDigits:curDecimals(BASE_CURRENCY)});}
 // 金額文字列→最小通貨単位の整数。空欄・0以下・負数・通貨の小数桁超過はnull
 function parseAmountMinorStr(raw,code){
   const s=normalizeAmountText(raw).trim();
@@ -1460,10 +1464,13 @@ function sortedSplitDetails(e){
 }
 function calcBalances(){
   // bal=立替(paid)−負担(owed)の純収支。paid/owedは「個人別の精算内訳」表示用の内訳（送金単位の丸めを受けない正確な値）
-  // 金額はすべて基準通貨建て（BASE_CURRENCY）で集計する
+  // 金額はすべて基準通貨の最小単位建て（JPY=円、USD=セント）で集計する。
+  // 換算式：支払い通貨のminor amount ÷ 支払い通貨のminorFactor × rate × 基準通貨のminorFactor
+  //（rateは「1支払い通貨単位＝rate基準通貨単位」。JPYは基準minorFactor=1のため従来計算と恒等）
   const bal={},paid={},owed={};
   members.forEach(m=>{bal[m.name]=0;paid[m.name]=0;owed[m.name]=0;});
   let total=0,ready=true,hasFallback=false,hasExcluded=false;
+  const bf=minorFactor(BASE_CURRENCY);
   expenses.forEach(e=>{
     const r=rate(e.currency);
     if(r===null){ready=false;return;}
@@ -1471,15 +1478,15 @@ function calcBalances(){
     if(res.excluded){hasExcluded=true;return;}
     if(res.fallback)hasFallback=true;
     const f=minorFactor(e.currency);
-    const amtBase=res.totalMinor/f*r;
-    bal[e.payer]=(bal[e.payer]||0)+amtBase;
-    paid[e.payer]=(paid[e.payer]||0)+amtBase;
+    const amtBaseMinor=res.totalMinor/f*r*bf;
+    bal[e.payer]=(bal[e.payer]||0)+amtBaseMinor;
+    paid[e.payer]=(paid[e.payer]||0)+amtBaseMinor;
     res.allocations.forEach(a=>{
-      const allocBase=a.amountMinor/f*r;
-      bal[a.member]=(bal[a.member]||0)-allocBase;
-      owed[a.member]=(owed[a.member]||0)+allocBase;
+      const allocBaseMinor=a.amountMinor/f*r*bf;
+      bal[a.member]=(bal[a.member]||0)-allocBaseMinor;
+      owed[a.member]=(owed[a.member]||0)+allocBaseMinor;
     });
-    total+=amtBase;
+    total+=amtBaseMinor;
   });
   return {bal,paid,owed,total,ready,hasFallback,hasExcluded};
 }
@@ -2101,12 +2108,12 @@ function computeSettlements(){
   const {bal,paid,owed,total,ready,hasFallback,hasExcluded}=calcBalances();
   const settles=[];
   if(ready&&expenses.length){
-    // 送金単位（roundUnit=1/10/100。基準通貨の主単位の倍数、JPYでは1円/10円/100円）。未対応の値（旧1,000等）は1へフォールバック
+    // 送金単位（roundUnit=1/10/100。基準通貨の最小単位の倍数、JPYでは1円/10円/100円、USDでは1/10/100セント）。未対応の値（旧1,000等）は1へフォールバック
     const u=(roundUnit===10||roundUnit===100)?roundUnit:1;
     // まず四捨五入前の正確な収支で貪欲法マッチングして正確な送金額を求め、
     // 各送金行ごとに独立して選択単位で四捨五入する（送金合計を合わせるための切り下げ調整はしない）。
     // 四捨五入で0円になった送金行は表示しない。
-    // EPS: 外貨換算の浮動小数点誤差を貸し借りとして扱わないためのしきい値
+    // EPS: 外貨換算の浮動小数点誤差（基準通貨の最小単位未満）を貸し借りとして扱わないためのしきい値
     const EPS=0.005;
     const order=members.map(m=>m.name);
     const pos=[],neg=[];
@@ -2144,7 +2151,8 @@ function buildSettleMailto(gname,text){return `mailto:?subject=${encodeURICompon
 Object.assign(window,{computeSettlements,buildSettleShareText,buildSettleSubject,buildSettleMailto});
 // 検証用フック：精算計算はモジュール内の members/expenses/rates/roundUnit を参照するため、
 // テストから決まったデータを流し込んで computeSettlements/renderSettle を実行できるようにする（呼ばれた時だけ状態を書き換える副作用のない公開）。
-Object.assign(window,{__setSettleState:(m,e,r,u,gid)=>{members=m||[];expenses=e||[];rates=r||{};if(u!=null)roundUnit=u;if(gid!=null)GID=gid;},__getRoundUnit:()=>roundUnit,renderSettle});
+// 第6引数base（テスト専用）は基準通貨コード。省略・不正な値のときは必ずJPYへ戻す（既存5引数呼び出しはそのままJPYで動く後方互換）。
+Object.assign(window,{__setSettleState:(m,e,r,u,gid,base)=>{members=m||[];expenses=e||[];rates=r||{};if(u!=null)roundUnit=u;if(gid!=null)GID=gid;BASE_CURRENCY=(typeof base==='string'&&/^[A-Z]{3}$/.test(base))?base:'JPY';},__getRoundUnit:()=>roundUnit,renderSettle});
 function renderSettle(){
   const rel=document.getElementById('s-result');
   const bel=document.getElementById('s-balance');
@@ -2171,10 +2179,10 @@ function renderSettle(){
   }
   // 個人別の精算内訳：送金単位の丸めを受けない正確な値（表示のみ既存ルール通り基準通貨の最小単位へ四捨五入。JPYでは円単位）
   // 合計行は丸め前のpaid/owedを合計してから丸める（total＝Σpaidなので総支出額と厳密に一致する）
-  const sumPaid=roundBase(members.reduce((s,m)=>s+(paid[m.name]||0),0));
-  const sumOwed=roundBase(members.reduce((s,m)=>s+(owed[m.name]||0),0));
+  const sumPaid=roundBaseMinor(members.reduce((s,m)=>s+(paid[m.name]||0),0));
+  const sumOwed=roundBaseMinor(members.reduce((s,m)=>s+(owed[m.name]||0),0));
   bel.innerHTML=`<table class="stbl"><thead><tr><th>参加者</th><th>立替</th><th>負担</th><th>差引</th></tr></thead><tbody>${members.map(m=>{
-    const d=roundBase(bal[m.name]||0);
+    const d=roundBaseMinor(bal[m.name]||0);
     const col=d>0?'#16a34a':d<0?'#dc2626':'#94a3b8';
     const ds=d>0?`+${fmtBase(d)}`:fmtBase(d);
     return `<tr><td>${m.name}</td><td>${fmtBase(paid[m.name]||0)}${BASE_UNIT}</td><td>${fmtBase(owed[m.name]||0)}${BASE_UNIT}</td><td style="color:${col};font-weight:600">${ds}${BASE_UNIT}</td></tr>`;
