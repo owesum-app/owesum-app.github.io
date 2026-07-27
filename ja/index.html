@@ -295,6 +295,9 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 
 <!-- グループ画面 -->
 <div id="p-group" class="page show">
+  <div style="text-align:right;padding:6px 14px 0;font-size:12px;position:relative;z-index:3">
+    <a href="/en/" class="lang-switch-link" style="color:#64748b;text-decoration:underline;text-underline-offset:3px">English</a>
+  </div>
   <section class="hero">
     <div class="hero-inner">
       <h1 class="hero-title">飲み会も旅行も簡単に精算！</h1>
@@ -341,6 +344,9 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 <!-- メインアプリ -->
 <div id="p-main" class="page">
   <div class="wrap">
+    <div style="text-align:right;padding:0 0 6px;font-size:12px">
+      <a href="/en/" class="lang-switch-link" style="color:#64748b;text-decoration:underline;text-underline-offset:3px">English</a>
+    </div>
 
     <!-- メンバー -->
     <div id="t-members" class="tab show">
@@ -1069,18 +1075,27 @@ function buildInviteMailto(gname,url){
 }
 // type="module"はトップレベル宣言をwindowへ公開しないため、テスト・検証用に明示公開する（副作用のない純関数のみ）
 Object.assign(window,{buildInviteUrl,buildSettleShareUrl,buildInviteSubject,buildInviteText,buildInviteMessage,buildInviteMailto});
+// ===== 言語切替（/ja/ <-> /en/） =====
+// クエリ（?g=...、tab=...、ogv=...）とハッシュを維持したまま言語を切り替える。URL変更のたびに再計算する。
+function syncLangSwitch(){
+  document.querySelectorAll('.lang-switch-link').forEach(el=>{el.href='/en/'+location.search+location.hash;});
+}
+syncLangSwitch();
+window.addEventListener('hashchange',syncLangSwitch);
 function setUrlForGroup(id,mode){
   if(mode==='none')return;
   const target=location.pathname+'?g='+encodeURIComponent(id);
   const cur=location.pathname+location.search;
   if(cur===target||mode==='replace')history.replaceState({g:String(id)},'',target);
   else history.pushState({g:String(id)},'',target);
+  syncLangSwitch();
 }
 function setUrlForList(mode){
   if(mode==='none')return;
   const cur=location.pathname+location.search;
   if(cur===location.pathname||mode==='replace')history.replaceState({g:null},'',location.pathname);
   else history.pushState({g:null},'',location.pathname);
+  syncLangSwitch();
 }
 
 // ===== 初回紹介画面（招待URL） =====
@@ -1413,6 +1428,7 @@ document.getElementById('btn-back').addEventListener('click',()=>showGroupList('
 
 // ブラウザの戻る／進むと画面を同期する
 window.addEventListener('popstate',async()=>{
+  syncLangSwitch();
   const gid=new URLSearchParams(location.search).get('g');
   const onIntro=document.getElementById('p-intro').classList.contains('show');
   if(!gid){
@@ -2330,6 +2346,7 @@ async function boot(){
     }catch(err){debugLog('グループURL処理例外',{message:err.message,stack:err.stack});}
     pendingSettleTab=false;
     history.replaceState({g:null},'',location.pathname);
+    syncLangSwitch();
   }
   await loadGroups();
 }

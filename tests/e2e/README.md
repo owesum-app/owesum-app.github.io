@@ -94,6 +94,27 @@ node tests/e2e/owesum_base_currency_backup_e2e.js
 * メール共有文字列
 * LINE共有文字列
 
+## owesum_en_locale_e2e.js
+
+`ja/index.html`を基に新設した英語版`en/index.html`が、日本語版のDB・JSONバックアップ仕様
+（version 1/2/3、`groups.base_currency`、精算エンジン）を一切変えずに、画面文言のみ英語で
+正しく動作することを検証するテストです。
+
+`/en/`の表示・英語文言（日本語残存なし）、新規グループ作成時の`base_currency:'USD'`明示、
+新規支払いの初期通貨USD、JPY基準グループを`/en/`で開いてもJPY精算・USD基準グループを`/ja/`で
+開いてもUSD精算になること、同一グループを`/ja/`と`/en/`で開いたときの送金結果一致、
+言語切替リンク（`.lang-switch-link`）がグループID・精算共有URLのtab/ogv・ハッシュを維持すること、
+バックアップversion 1・2・3の復元、精算結果共有・招待共有の文面が英語で構成されることを確認します。
+
+実行コマンド：
+
+```
+node tests/e2e/owesum_en_locale_e2e.js
+```
+
+* 本番Supabaseへは接続しません（全ルート横取り・本番書込み0件）。Googleへの実送信もありません。
+* `ja/index.html`側の変更は言語切替リンクの追加のみで、既存の文言・DB仕様・URL管理ロジックは変えていません。
+
 ## e2e_narika.js / e2e_split.js
 
 OweSum全体の既存回帰テストです。
