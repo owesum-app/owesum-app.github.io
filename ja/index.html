@@ -792,8 +792,15 @@ let subs=[];
 function today(){return new Date().toISOString().split('T')[0];}
 function fdate(s){if(!s)return '';const[,m,d]=s.split('-');return `${+m}/${+d}`;}
 function ci(code){return CURR.find(c=>c.code===code)||{code,flag:'',name:code};}
-function rate(code){if(code==='JPY')return 1;const v=parseFloat(rates[code]);return isNaN(v)||v<=0?null:v;}
-function jpy(amt,code){const r=rate(code);return r?amt*r:null;}
+// ===== 基準通貨 =====
+// 精算集計・換算表示・為替タブの換算先となる通貨。日本語版はJPY固定とし、
+// DB・URL・ブラウザ設定・localStorageからは決定せず、利用者も変更できない。
+const BASE_CURRENCY='JPY';
+const BASE_UNIT='円'; // 基準通貨建て金額に付ける単位表示（日本語版）
+// 為替レートの意味：1通貨単位＝rate基準通貨。基準通貨自身は常に1
+function rate(code){if(code===BASE_CURRENCY)return 1;const v=parseFloat(rates[code]);return isNaN(v)||v<=0?null:v;}
+// 支払い通貨の金額→基準通貨建て金額。レート未設定はnull
+function toBase(amt,code){const r=rate(code);return r?amt*r:null;}
 function rnd(v,u){return Math.round(v/u)*u;}
 
 // ===== トースト通知 =====
@@ -849,6 +856,10 @@ function toMinor(amount,code){return Math.round(amount*minorFactor(code));}
 function fmtMinor(minor,code){
   return (minor/minorFactor(code)).toLocaleString('ja-JP',{maximumFractionDigits:curDecimals(code)});
 }
+// 基準通貨の最小単位へ丸める（基準通貨がJPY=0桁の間はMath.roundと同値）
+function roundBase(v){const f=minorFactor(BASE_CURRENCY);return Math.round(v*f)/f;}
+// 基準通貨建て金額の表示整形（最小単位へ丸め→桁区切り）。JPYでは従来のMath.round(v).toLocaleString()と同一表示
+function fmtBase(v){return roundBase(v).toLocaleString(undefined,{maximumFractionDigits:curDecimals(BASE_CURRENCY)});}
 // 金額文字列→最小通貨単位の整数。空欄・0以下・負数・通貨の小数桁超過はnull
 function parseAmountMinorStr(raw,code){
   const s=normalizeAmountText(raw).trim();
@@ -1280,7 +1291,7 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
   // 4. 為替レート
   if(data.rates&&typeof data.rates==='object'){
     const rows=Object.entries(data.rates)
-      .filter(([code,r])=>code!=='JPY'&&r)
+      .filter(([code,r])=>code!==BASE_CURRENCY&&r)
       .map(([code,r])=>({group_id:gid,currency:code,rate:parseFloat(r)}));
     if(rows.length){
       const {error}=await db.from('rates').insert(rows);
@@ -1449,6 +1460,7 @@ function sortedSplitDetails(e){
 }
 function calcBalances(){
   // bal=立替(paid)−負担(owed)の純収支。paid/owedは「個人別の精算内訳」表示用の内訳（送金単位の丸めを受けない正確な値）
+  // 金額はすべて基準通貨建て（BASE_CURRENCY）で集計する
   const bal={},paid={},owed={};
   members.forEach(m=>{bal[m.name]=0;paid[m.name]=0;owed[m.name]=0;});
   let total=0,ready=true,hasFallback=false,hasExcluded=false;
@@ -1459,15 +1471,15 @@ function calcBalances(){
     if(res.excluded){hasExcluded=true;return;}
     if(res.fallback)hasFallback=true;
     const f=minorFactor(e.currency);
-    const j=res.totalMinor/f*r;
-    bal[e.payer]=(bal[e.payer]||0)+j;
-    paid[e.payer]=(paid[e.payer]||0)+j;
+    const amtBase=res.totalMinor/f*r;
+    bal[e.payer]=(bal[e.payer]||0)+amtBase;
+    paid[e.payer]=(paid[e.payer]||0)+amtBase;
     res.allocations.forEach(a=>{
-      const aj=a.amountMinor/f*r;
-      bal[a.member]=(bal[a.member]||0)-aj;
-      owed[a.member]=(owed[a.member]||0)+aj;
+      const allocBase=a.amountMinor/f*r;
+      bal[a.member]=(bal[a.member]||0)-allocBase;
+      owed[a.member]=(owed[a.member]||0)+allocBase;
     });
-    total+=j;
+    total+=amtBase;
   });
   return {bal,paid,owed,total,ready,hasFallback,hasExcluded};
 }
@@ -1512,15 +1524,15 @@ function buildSummaryText(){
   }
   const used=[...new Set(expenses.map(e=>e.currency))];
   t+=`\n━━━━━━━━━━━━━━━\n■ 為替レート\n━━━━━━━━━━━━━━━\n`;
-  used.forEach(c=>{const r=rate(c);t+=`・1 ${c} = ${r!==null?r+' 円':'未設定'}\n`;});
+  used.forEach(c=>{const r=rate(c);t+=`・1 ${c} = ${r!==null?r+' '+BASE_UNIT:'未設定'}\n`;});
   t+=`\n━━━━━━━━━━━━━━━\n■ 精算結果\n━━━━━━━━━━━━━━━\n`;
   const {bal,total,ready}=calcBalances();
   if(!ready||!expenses.length){t+='（為替レート未設定のため計算できません）\n';}
   else{
-    t+=`合計：${Math.round(total).toLocaleString()}円\n1人あたり：${Math.round(total/Math.max(members.length,1)).toLocaleString()}円\n\n`;
+    t+=`合計：${fmtBase(total)}${BASE_UNIT}\n1人あたり：${fmtBase(total/Math.max(members.length,1))}${BASE_UNIT}\n\n`;
     members.forEach(m=>{
       const b=bal[m.name]||0;
-      const lbl=b>0.5?`+${Math.round(b).toLocaleString()}円 もらう`:b<-0.5?`${Math.round(b).toLocaleString()}円 払う`:'イーブン';
+      const lbl=b>0.5?`+${fmtBase(b)}${BASE_UNIT} もらう`:b<-0.5?`${fmtBase(b)}${BASE_UNIT} 払う`:'イーブン';
       t+=`・${m.name}：${lbl}\n`;
     });
   }
@@ -1949,8 +1961,8 @@ function renderExpenses(){
   if(!expenses.length){el.innerHTML='<div class="card" style="color:#aaa;font-size:13px">まだ記録がありません</div>';return;}
   el.innerHTML=expenses.map(e=>{
     const c=ci(e.currency);
-    const j=jpy(e.amount,e.currency);
-    const tag=j!==null?`<span class="tag tag-ok" style="font-size:12px">円換算 ≈${Math.round(j).toLocaleString()}円</span>`:`<span class="tag tag-w" style="font-size:12px">為替レート入力待ち</span>`;
+    const b=toBase(e.amount,e.currency);
+    const tag=b!==null?`<span class="tag tag-ok" style="font-size:12px">円換算 ≈${fmtBase(b)}${BASE_UNIT}</span>`:`<span class="tag tag-w" style="font-size:12px">為替レート入力待ち</span>`;
     const bens=e.beneficiaries.split(',').filter(Boolean);
     const isAll=members.length>0&&bens.length===members.length;
     const res=calculateAllocations(e);
@@ -2053,7 +2065,7 @@ document.getElementById('ed-save').addEventListener('click',async()=>{
 // ===== 為替 =====
 function renderRates(){
   const el=document.getElementById('rate-list');
-  const used=[...new Set(expenses.map(e=>e.currency))].filter(c=>c!=='JPY');
+  const used=[...new Set(expenses.map(e=>e.currency))].filter(c=>c!==BASE_CURRENCY);
   if(!used.length){el.innerHTML='<div style="color:#aaa;font-size:13px;padding:4px 0">支払いを記録すると表示されます</div>';return;}
   el.innerHTML=used.map(code=>{
     const c=ci(code);
@@ -2065,7 +2077,7 @@ function renderRates(){
       <div style="display:flex;align-items:center;gap:5px">
         <span style="font-size:12px;color:#aaa">1${code}=</span>
         <input type="number" step="any" placeholder="0.00" value="${rates[code]||''}" data-rc="${code}" style="width:88px;font-size:15px">
-        <span style="font-size:12px;color:#aaa">円</span>
+        <span style="font-size:12px;color:#aaa">${BASE_UNIT}</span>
       </div>
     </div>`;
   }).join('');
@@ -2089,7 +2101,7 @@ function computeSettlements(){
   const {bal,paid,owed,total,ready,hasFallback,hasExcluded}=calcBalances();
   const settles=[];
   if(ready&&expenses.length){
-    // 送金単位（roundUnit=1/10/100円）。未対応の値（旧1,000円等）は1円へフォールバック
+    // 送金単位（roundUnit=1/10/100。基準通貨の主単位の倍数、JPYでは1円/10円/100円）。未対応の値（旧1,000等）は1へフォールバック
     const u=(roundUnit===10||roundUnit===100)?roundUnit:1;
     // まず四捨五入前の正確な収支で貪欲法マッチングして正確な送金額を求め、
     // 各送金行ごとに独立して選択単位で四捨五入する（送金合計を合わせるための切り下げ調整はしない）。
@@ -2120,7 +2132,7 @@ function buildSettleShareText(gname,settles,url){
   if(!settles.length){
     t+='精算はありません';
   }else{
-    t+=settles.map(s=>`${s.from} → ${s.to}：${s.amt.toLocaleString()}円`).join('\n');
+    t+=settles.map(s=>`${s.from} → ${s.to}：${fmtBase(s.amt)}${BASE_UNIT}`).join('\n');
   }
   t+=`\n\n詳細はこちら\n${url}`;
   return t;
@@ -2157,19 +2169,19 @@ function renderSettle(){
     rel.innerHTML='<div style="color:#aaa;font-size:13px">為替レートを入力すると表示されます</div>';
     bel.innerHTML='';return;
   }
-  // 個人別の精算内訳：送金単位の丸めを受けない正確な値（表示のみ既存ルール通り円へ四捨五入）
-  // 合計行は丸め前のpaid/owedを合計してから円へ四捨五入する（total＝Σpaidなので総支出額と厳密に一致する）
-  const sumPaid=Math.round(members.reduce((s,m)=>s+(paid[m.name]||0),0));
-  const sumOwed=Math.round(members.reduce((s,m)=>s+(owed[m.name]||0),0));
+  // 個人別の精算内訳：送金単位の丸めを受けない正確な値（表示のみ既存ルール通り基準通貨の最小単位へ四捨五入。JPYでは円単位）
+  // 合計行は丸め前のpaid/owedを合計してから丸める（total＝Σpaidなので総支出額と厳密に一致する）
+  const sumPaid=roundBase(members.reduce((s,m)=>s+(paid[m.name]||0),0));
+  const sumOwed=roundBase(members.reduce((s,m)=>s+(owed[m.name]||0),0));
   bel.innerHTML=`<table class="stbl"><thead><tr><th>参加者</th><th>立替</th><th>負担</th><th>差引</th></tr></thead><tbody>${members.map(m=>{
-    const p=Math.round(paid[m.name]||0),o=Math.round(owed[m.name]||0),d=Math.round(bal[m.name]||0);
+    const d=roundBase(bal[m.name]||0);
     const col=d>0?'#16a34a':d<0?'#dc2626':'#94a3b8';
-    const ds=d>0?`+${d.toLocaleString()}`:d.toLocaleString();
-    return `<tr><td>${m.name}</td><td>${p.toLocaleString()}円</td><td>${o.toLocaleString()}円</td><td style="color:${col};font-weight:600">${ds}円</td></tr>`;
-  }).join('')}</tbody><tfoot><tr><td>合計</td><td>${sumPaid.toLocaleString()}円</td><td>${sumOwed.toLocaleString()}円</td><td></td></tr></tfoot></table>`;
+    const ds=d>0?`+${fmtBase(d)}`:fmtBase(d);
+    return `<tr><td>${m.name}</td><td>${fmtBase(paid[m.name]||0)}${BASE_UNIT}</td><td>${fmtBase(owed[m.name]||0)}${BASE_UNIT}</td><td style="color:${col};font-weight:600">${ds}${BASE_UNIT}</td></tr>`;
+  }).join('')}</tbody><tfoot><tr><td>合計</td><td>${fmtBase(sumPaid)}${BASE_UNIT}</td><td>${fmtBase(sumOwed)}${BASE_UNIT}</td><td></td></tr></tfoot></table>`;
   if(!settles.length){rel.innerHTML='<div style="color:#16a34a;font-weight:600;font-size:14px">全員イーブン！精算不要</div>';return;}
   rel.innerHTML=`<table class="stbl"><thead><tr><th>送金</th><th>金額</th></tr></thead><tbody>${settles.map(s=>
-    `<tr><td>${s.from} → ${s.to}</td><td style="font-size:15px;font-weight:700">${s.amt.toLocaleString()}円</td></tr>`
+    `<tr><td>${s.from} → ${s.to}</td><td style="font-size:15px;font-weight:700">${fmtBase(s.amt)}${BASE_UNIT}</td></tr>`
   ).join('')}</tbody></table>`;
 }
 // 精算結果を共有する。ボタンでアクションシート（LINEなどで共有／メールで送る／結果をコピー／キャンセル）を出し、
