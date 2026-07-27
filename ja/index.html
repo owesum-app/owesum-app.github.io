@@ -793,9 +793,11 @@ function today(){return new Date().toISOString().split('T')[0];}
 function fdate(s){if(!s)return '';const[,m,d]=s.split('-');return `${+m}/${+d}`;}
 function ci(code){return CURR.find(c=>c.code===code)||{code,flag:'',name:code};}
 // ===== 基準通貨 =====
-// 精算集計・換算表示・為替タブの換算先となる通貨。日本語版はJPY固定とし、
-// DB・URL・ブラウザ設定・localStorageからは決定せず、利用者も変更できない。
-// 変更経路はテスト専用フック__setSettleStateの基準通貨引数のみ（省略時は必ずJPYへ戻る）。
+// 精算集計・換算表示・為替タブの換算先となる通貨。DBのgroups.base_currencyだけを正とし、
+// URL・ブラウザ設定・localStorageからは決定せず、利用者も変更できない。
+// 日本語版の新規グループはJPYで作成するため、通常運用では引き続きJPYになる。
+// 変更経路はグループ読込（enterGroup）とテスト専用フック__setSettleStateの基準通貨引数のみ
+// （後者は省略時に必ずJPYへ戻る）。
 let BASE_CURRENCY='JPY';
 const BASE_UNIT='円'; // 基準通貨建て金額に付ける単位表示（日本語版）
 // 為替レートの意味：1通貨単位＝rate基準通貨。基準通貨自身は常に1
@@ -1019,6 +1021,31 @@ attachAmountInput(document.getElementById('ed-amt'));
 // ===== URL管理（?g=グループID） =====
 // グループを開いている間はアドレスバーを ?g=ID に保ち、一覧では ?g= を外す
 const groupNames={};
+// ===== グループ基準通貨（DBのgroups.base_currencyと連携） =====
+// 基準通貨は必ずDBのグループ行base_currencyを正とし、URLの/ja/・ブラウザ言語・localStorageでは決定しない。
+// 同じグループを将来/ja/と/en/のどちらで開いても、この値で同じ基準通貨になる。
+// groupBaseの値：検証済み通貨コード／null（不正値：誤った金額を出さないため開かない）
+const groupBase={};
+// groups.base_currencyの検証。欠落（null・undefined）は既存データ・既存E2Eモックとの後方互換でJPY
+// （本番DBはNOT NULL DEFAULT 'JPY'のため通常は欠落しない）。存在する値は「文字列・大文字英字3文字・
+// アプリの通貨一覧に存在」をすべて満たすときだけ採用し、不正値・未知コードは黙ってJPYへ落とさずnull
+function normalizeGroupBase(raw){
+  if(raw==null)return 'JPY';
+  return (typeof raw==='string'&&/^[A-Z]{3}$/.test(raw)&&CURR.some(c=>c.code===raw))?raw:null;
+}
+// グループの基準通貨を確定する。キャッシュ未取得の経路では保険としてDBから取り直し、
+// 取得失敗・グループ不存在・不正値はnull（呼び出し側で読込を安全に中止する）
+async function resolveGroupBase(id){
+  const key=String(id);
+  if(groupBase[key]===undefined){
+    try{
+      const {data,error}=await db.from('groups').select('base_currency').eq('id',id);
+      if(error||!data||!data.length){debugLog('基準通貨の取得失敗',{id,error:error?error.message:'not found'});return null;}
+      groupBase[key]=normalizeGroupBase(data[0].base_currency);
+    }catch(err){debugLog('基準通貨の取得例外',{id,message:err.message});return null;}
+  }
+  return groupBase[key];
+}
 // 招待URLは必ずこの関数を通す（コピー・共有シート・メールで完全に同一のURLにするため）
 function buildInviteUrl(id){return location.origin+location.pathname+'?g='+encodeURIComponent(id);}
 // 精算結果の共有URL：招待URLに tab=settle（開いた直後に精算タブを表示する指示）と
@@ -1154,7 +1181,7 @@ async function loadGroups(){
       wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#999;font-size:13px">参加中のグループはありません</div>';
       return;
     }
-    data.forEach(g=>{groupNames[String(g.id)]=g.name||'名称未設定';});
+    data.forEach(g=>{groupNames[String(g.id)]=g.name||'名称未設定';groupBase[String(g.id)]=normalizeGroupBase(g.base_currency);});
     wrap.innerHTML='<div class="sec">参加中のグループ</div>'+data.map(g=>{
       const created=g.created_at?new Date(g.created_at).toLocaleDateString('ja-JP'):'';
       return `<div class="g-item" data-id="${esc(g.id)}" data-name="${esc(g.name||'名称未設定')}">
@@ -1182,8 +1209,10 @@ async function createGroupByName(name){
   if(creatingGroup)return false;
   creatingGroup=true;
   try{
-    const {data,error}=await db.from('groups').insert({name}).select().single();
+    // 日本語版の新規グループはJPY基準。DBのDEFAULT任せにせず意図を明示して保存する
+    const {data,error}=await db.from('groups').insert({name,base_currency:'JPY'}).select().single();
     if(error){await ask('作成失敗: '+error.message);return false;}
+    groupBase[String(data.id)]=normalizeGroupBase(data.base_currency);
     // 計測：グループ作成の成功だけを匿名で1回記録（グループ名・ID等のパラメータは付けない）
     if(typeof window.owesumTrack==='function')window.owesumTrack('group_created');
     const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]');
@@ -1273,9 +1302,11 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
   const gname=data.group_name;
   if(!await ask(`「${gname}」を復元します。\n（新しいグループとして作成されます）\n\nよろしいですか？`))return;
   // 1. グループ作成
-  const {data:g,error:ge}=await db.from('groups').insert({name:gname}).select().single();
+  // 復元先も日本語版の新規グループなのでJPY基準を明示（バックアップJSONからは基準通貨を読まない）
+  const {data:g,error:ge}=await db.from('groups').insert({name:gname,base_currency:'JPY'}).select().single();
   if(ge){await ask('復元失敗（グループ作成）: '+ge.message);return;}
   const gid=g.id;
+  groupBase[String(gid)]=normalizeGroupBase(g.base_currency);
   // 2. メンバー
   if(Array.isArray(data.members)&&data.members.length){
     const rows=data.members.map(m=>({group_id:gid,name:m.name}));
@@ -1312,7 +1343,17 @@ document.getElementById('restore-file').addEventListener('change',async(ev)=>{
 });
 
 // urlMode: 'push'（既定）| 'replace' | 'none'（戻る/進むから呼ばれた場合）
-function enterGroup(id,name,urlMode){
+// 基準通貨をDBのグループ行から先に確定し、expenses・rates・精算の計算/表示前にエンジンへ設定する。
+// 確定できないグループは誤った金額を表示しないため開かない（黙ってJPYにしない）
+async function enterGroup(id,name,urlMode){
+  const base=await resolveGroupBase(id);
+  if(!base){
+    debugLog('基準通貨が確定できないため読込中止',{id});
+    await ask('このグループの基準通貨情報を確認できませんでした。\n誤った金額を表示しないよう、読み込みを中止しました。');
+    showGroupList('replace');
+    return;
+  }
+  BASE_CURRENCY=base;
   GID=id;
   groupNames[String(id)]=name;
   // 参加中のグループとして記録（一覧に残す）
@@ -1367,8 +1408,11 @@ window.addEventListener('popstate',async()=>{
   const cached=groupNames[String(gid)];
   if(cached){openGroupFromUrl(gid,cached,'none');return;}
   try{
-    const {data,error}=await db.from('groups').select('id,name').eq('id',gid);
-    if(!error&&data&&data.length){openGroupFromUrl(data[0].id,data[0].name||'名称未設定','none');return;}
+    const {data,error}=await db.from('groups').select('id,name,base_currency').eq('id',gid);
+    if(!error&&data&&data.length){
+      groupBase[String(data[0].id)]=normalizeGroupBase(data[0].base_currency);
+      openGroupFromUrl(data[0].id,data[0].name||'名称未設定','none');return;
+    }
   }catch(err){debugLog('popstate処理例外',{message:err.message});}
   showGroupList('replace');
 });
@@ -1390,6 +1434,7 @@ document.getElementById('btn-del-group').addEventListener('click',async()=>{
   const ids=JSON.parse(localStorage.getItem('narika_gids')||'[]').filter(x=>x!==gid);
   localStorage.setItem('narika_gids',JSON.stringify(ids));
   delete groupNames[String(gid)];
+  delete groupBase[String(gid)];
   toast('グループを削除しました','info');
   showGroupList('push');
 });
@@ -2152,7 +2197,7 @@ Object.assign(window,{computeSettlements,buildSettleShareText,buildSettleSubject
 // 検証用フック：精算計算はモジュール内の members/expenses/rates/roundUnit を参照するため、
 // テストから決まったデータを流し込んで computeSettlements/renderSettle を実行できるようにする（呼ばれた時だけ状態を書き換える副作用のない公開）。
 // 第6引数base（テスト専用）は基準通貨コード。省略・不正な値のときは必ずJPYへ戻す（既存5引数呼び出しはそのままJPYで動く後方互換）。
-Object.assign(window,{__setSettleState:(m,e,r,u,gid,base)=>{members=m||[];expenses=e||[];rates=r||{};if(u!=null)roundUnit=u;if(gid!=null)GID=gid;BASE_CURRENCY=(typeof base==='string'&&/^[A-Z]{3}$/.test(base))?base:'JPY';},__getRoundUnit:()=>roundUnit,renderSettle});
+Object.assign(window,{__setSettleState:(m,e,r,u,gid,base)=>{members=m||[];expenses=e||[];rates=r||{};if(u!=null)roundUnit=u;if(gid!=null)GID=gid;BASE_CURRENCY=(typeof base==='string'&&/^[A-Z]{3}$/.test(base))?base:'JPY';},__getRoundUnit:()=>roundUnit,__getBaseCurrency:()=>BASE_CURRENCY,renderSettle});
 function renderSettle(){
   const rel=document.getElementById('s-result');
   const bel=document.getElementById('s-balance');
@@ -2245,11 +2290,12 @@ async function boot(){
   if(gid){
     try{
       debugLog('グループURL確認',{gid});
-      const {data,error}=await db.from('groups').select('id,name').eq('id',gid);
+      const {data,error}=await db.from('groups').select('id,name,base_currency').eq('id',gid);
       if(error)debugLog('グループ取得エラー',{message:error.message});
       if(!error&&data&&data.length){
         const g=data[0];
         const gname=g.name||'名称未設定';
+        groupBase[String(g.id)]=normalizeGroupBase(g.base_currency);
         // 紹介画面が未確認の端末は、まずOweSumの紹介画面を表示する（URLは?g=のまま）
         if(!introSeen(g.id)){
           showIntro(g.id,gname,'replace');

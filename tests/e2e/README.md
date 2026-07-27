@@ -44,6 +44,24 @@ node tests/e2e/owesum_base_currency_engine_e2e.js
 * 為替レートはテスト内固定値のみで、本番レートは使用しません。
 * 期待値は手計算と独立実装で照合したうえでハードコードしています。無断で更新しないでください。
 
+## owesum_base_currency_db_e2e.js
+
+グループ基準通貨のDB連携（`public.groups.base_currency`）を検証するテストです。
+
+`/ja/` の新規グループ作成・復元でのINSERTに`base_currency:'JPY'`が明示されること、
+グループ読込時にDB行のbase_currencyが内部エンジンへ設定されること（JPY行→JPY、
+USDモック行→USDでURLの`/ja/`に上書きされない）、不正値・未知コードを黙ってJPY扱いせず
+読込を安全に中止すること、base_currency欠落行は既存モック互換でJPYになることを検証します。
+
+実行コマンド：
+
+```
+node tests/e2e/owesum_base_currency_db_e2e.js
+```
+
+* 本番Supabaseへは接続しません（全ルート横取り・本番書込み0件）。Googleへの実送信・group_created実送信もありません。
+* 基準通貨は必ずDBのグループ行を正とし、URL・ブラウザ言語・localStorageでは決定しない設計を固定します。
+
 ## owesum_field_usability_e2e.js
 
 コミット7daa80aで修正した以下の範囲を確認する55件のテストです。
