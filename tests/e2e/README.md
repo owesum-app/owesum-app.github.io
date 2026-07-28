@@ -115,6 +115,30 @@ node tests/e2e/owesum_en_locale_e2e.js
 * 本番Supabaseへは接続しません（全ルート横取り・本番書込み0件）。Googleへの実送信もありません。
 * `ja/index.html`側の変更は言語切替リンクの追加のみで、既存の文言・DB仕様・URL管理ロジックは変えていません。
 
+## owesum_en_native_share_e2e.js
+
+英語版(`/en/`)の3つの共有ボタン（Share settlement / Share invite link / Share records）が、
+navigator.share（OS標準の共有シート）を最優先で直接呼び出し、独自のLINE/emailシートを先に
+出さないことを検証するテストです。
+
+navigator.share対応端末では3ボタンともnavigator.shareが1回呼ばれ、title/text/urlが機能ごとに
+正しいこと、共有本文・URLが既存生成処理のままであることを確認します。ユーザーがキャンセル
+（AbortError）した場合はエラー・フォールバックを出さないこと、navigator.share非対応、または
+キャンセル以外の理由で失敗した場合だけ、共通のフォールバックシート（WhatsApp / email / Copy）
+を開くことを確認します。WhatsAppフォールバックは公式のwa.me汎用リンク（電話番号固定なし）へ
+共有本文をURLエンコードして渡します。日本語版(`/ja/`)が既存のshare-line構造のまま無変更である
+ことも確認します。
+
+実行コマンド：
+
+```
+node tests/e2e/owesum_en_native_share_e2e.js
+```
+
+* 本番Supabaseへは接続しません（全ルート横取り・本番書込み0件）。Googleへの実送信もありません。
+* WhatsApp（wa.me）への実際のナビゲーションは発生させません（`window.open`を横取りしてURL文字列のみ検証し、ルートも二重に遮断します）。
+* `location.href`の傍受が効かないChromium環境では、mailtoボタンの実クリック検証を`buildSettleMailto`の純関数検証にフォールバックします（`owesum_field_usability_e2e.js`と同方式）。
+
 ## e2e_narika.js / e2e_split.js
 
 OweSum全体の既存回帰テストです。

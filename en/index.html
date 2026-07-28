@@ -514,13 +514,13 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
   </div>
 </div>
 
-<!-- Settlement share action sheet -->
+<!-- Share action sheet: fallback shown only when the OS share sheet (navigator.share) isn't available or fails -->
 <div id="share-bg" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.45);z-index:10002;align-items:flex-end;justify-content:center" role="dialog" aria-modal="true" aria-label="Choose how to share">
   <div style="background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:480px;padding:14px 16px calc(14px + env(safe-area-inset-bottom));box-shadow:0 -6px 24px rgba(15,23,42,0.18)">
-    <div style="text-align:center;font-size:14px;font-weight:700;color:#1a1a1a;padding:2px 0 14px">Share settlement</div>
-    <button type="button" class="share-opt" id="share-line"><i class="ti ti-brand-line"></i>Share via LINE</button>
+    <div id="share-sheet-title" style="text-align:center;font-size:14px;font-weight:700;color:#1a1a1a;padding:2px 0 14px">Share</div>
+    <button type="button" class="share-opt" id="share-whatsapp"><i class="ti ti-brand-whatsapp"></i>Share via WhatsApp</button>
     <button type="button" class="share-opt" id="share-mail"><i class="ti ti-mail"></i>Send by email</button>
-    <button type="button" class="share-opt" id="share-copy"><i class="ti ti-copy"></i>Copy result</button>
+    <button type="button" class="share-opt" id="share-copy"><i class="ti ti-copy"></i>Copy</button>
     <button type="button" class="share-opt share-cancel" id="share-cancel">Cancel</button>
   </div>
 </div>
@@ -1078,8 +1078,10 @@ function buildInviteMailto(gname,url){
   const body=buildInviteMessage(gname,url);
   return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
 }
+// WhatsApp's official generic share link (no fixed phone number): opens WhatsApp with the given text pre-filled
+function buildWhatsAppShareUrl(text){return 'https://wa.me/?text='+encodeURIComponent(text);}
 // type="module"はトップレベル宣言をwindowへ公開しないため、テスト・検証用に明示公開する（副作用のない純関数のみ）
-Object.assign(window,{buildInviteUrl,buildSettleShareUrl,buildInviteSubject,buildInviteText,buildInviteMessage,buildInviteMailto});
+Object.assign(window,{buildInviteUrl,buildSettleShareUrl,buildInviteSubject,buildInviteText,buildInviteMessage,buildInviteMailto,buildWhatsAppShareUrl});
 // ===== Language switch (/en/ <-> /ja/) =====
 // Keeps the query string (?g=..., tab=..., ogv=...) and hash intact when switching language,
 // so the same group/tab reopens on the other side. Recomputed whenever the URL changes.
@@ -1635,15 +1637,20 @@ document.getElementById('btn-share').addEventListener('click',async()=>{
   const gname=document.getElementById('g-title').textContent;
   const url=buildInviteUrl(GID);
   const text=buildSummaryText()+`\n━━━━━━━━━━━━━━━\n■ Open this group\n${url}\n`;
-  // Phone: share sheet (LINE, etc.) / Desktop: copy to clipboard
+  const subject=`${gname} expense record`;
+  // Prefer the OS share sheet (WhatsApp, Messages, LINE, Mail, etc., whichever the user has installed).
+  // A canceled share (AbortError) is a normal outcome — no fallback in that case.
   if(navigator.share){
-    try{await navigator.share({title:`${gname} expense record`,text});}catch(err){/* User canceled — no action needed */}
-  }else if(navigator.clipboard){
-    try{await navigator.clipboard.writeText(text);await ask('Record copied.\nYou can paste it into LINE or an email.');}
-    catch(err){await ask('Could not copy. Try saving as a text file instead.');}
-  }else{
-    await ask('Sharing isn\'t supported in this browser. Try saving as a text file instead.');
+    try{await navigator.share({title:subject,text});return;}
+    catch(err){if(err&&err.name==='AbortError')return;}
   }
+  openShareSheet({
+    title:'Share records',
+    whatsappText:text,
+    mailto:`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`,
+    copyText:text,
+    copiedToast:'Record copied'
+  });
 });
 // ===== Per-device backup-save guidance =====
 // Device detection only decides which message to show — the save method itself is chosen via navigator.canShare
@@ -1760,16 +1767,20 @@ document.getElementById('btn-share-link').addEventListener('click',async()=>{
   if(!GID){await ask('No group is selected');return;}
   const gname=document.getElementById('g-title').textContent;
   const url=buildInviteUrl(GID);
+  // Prefer the OS share sheet. Including the URL in both text and url would show it twice in some
+  // apps, so text carries only the message and url carries the URL once.
+  // A canceled share (AbortError) is a normal outcome — no fallback in that case.
   if(navigator.share){
-    // Including the URL in both text and url would show it twice in LINE, so text carries only the message and url carries the URL once
-    try{await navigator.share({title:buildInviteSubject(gname),text:buildInviteText(gname),url});}catch(err){/* User canceled — no action needed */}
-  }else{
-    // Uses mailto: so the email subject is reliably set; also copies to clipboard so it can be pasted into LINE, etc. (URL appears once in the full text)
-    const ok=await copyTextToClipboard(buildInviteMessage(gname,url));
-    location.href=buildInviteMailto(gname,url);
-    if(ok)toast('Invite link copied (opening your email app too)');
-    else toast('Could not copy the link','error');
+    try{await navigator.share({title:buildInviteSubject(gname),text:buildInviteText(gname),url});return;}
+    catch(err){if(err&&err.name==='AbortError')return;}
   }
+  openShareSheet({
+    title:'Share invite link',
+    whatsappText:buildInviteMessage(gname,url),
+    mailto:buildInviteMailto(gname,url),
+    copyText:buildInviteMessage(gname,url),
+    copiedToast:'Invite link copied'
+  });
 });
 
 
@@ -2240,7 +2251,7 @@ function buildSettleShareText(gname,settles,url){
 }
 // Email subject is always set explicitly (navigator.share's title isn't reflected in the subject on iPhone Mail), so email uses mailto:
 function buildSettleSubject(gname){return `Settlement for "${gname}" on OweSum`;}
-// The body is buildSettleShareText(), shared identically by LINE, email, and copy. encodeURIComponent
+// The body is buildSettleShareText(), shared identically across navigator.share, email, and copy. encodeURIComponent
 // keeps group names with symbols or emoji intact.
 function buildSettleMailto(gname,text){return `mailto:?subject=${encodeURIComponent(buildSettleSubject(gname))}&body=${encodeURIComponent(text)}`;}
 Object.assign(window,{computeSettlements,buildSettleShareText,buildSettleSubject,buildSettleMailto});
@@ -2296,46 +2307,61 @@ function renderSettle(){
     `<tr><td>${s.from} → ${s.to}</td><td style="font-size:15px;font-weight:700">${baseUnitPrefix()}${fmtBase(s.amt)}</td></tr>`
   ).join('')}</tbody></table>`;
 }
-// Shares the settlement result. The button opens an action sheet (share via LINE / send by email /
-// copy result / cancel); every path uses buildSettleShareText() so the shared text always matches
-// what's on screen exactly.
+// Shares the settlement result. navigator.share (the OS share sheet — WhatsApp, Messages, LINE, Mail,
+// etc.) is used first; #share-bg is only a fallback for browsers without it, or when it fails for a
+// reason other than the user canceling. Every path uses buildSettleShareText() so the shared text
+// always matches what's on screen exactly.
 function currentSettleShareText(){
   const gname=document.getElementById('g-title').textContent;
   const url=buildSettleShareUrl(GID);
   return buildSettleShareText(gname,computeSettlements().settles,url);
 }
-function openShareSheet(){document.getElementById('share-bg').style.display='flex';}
+// #share-bg is reused by the settlement/invite-link/records buttons; each caller supplies its own
+// share content via payload={title,whatsappText,mailto,copyText,copiedToast}.
+let pendingShare=null;
+function openShareSheet(payload){
+  pendingShare=payload;
+  const tel=document.getElementById('share-sheet-title');
+  if(tel)tel.textContent=payload.title;
+  document.getElementById('share-bg').style.display='flex';
+}
 function closeShareSheet(){document.getElementById('share-bg').style.display='none';}
 document.getElementById('btn-share-settle').addEventListener('click',async()=>{
   if(!GID){await ask('No group is selected');return;}
-  // Blocks sharing (rather than opening the sheet) when the amount can't be finalized (missing exchange rate, needs review, etc.), so an incorrect amount is never shared
+  // Blocks sharing (rather than sharing) when the amount can't be finalized (missing exchange rate, needs review, etc.), so an incorrect amount is never shared
   if(!computeSettlements().canShare){toast('Please resolve the issues below before sharing','error');return;}
-  openShareSheet();
-});
-// Share via LINE: uses navigator.share. The URL is included once in the text body, so it isn't also passed as url (which would show it twice)
-document.getElementById('share-line').addEventListener('click',async()=>{
-  closeShareSheet();
   const gname=document.getElementById('g-title').textContent;
   const text=currentSettleShareText();
+  // A canceled share (AbortError) is a normal outcome — no fallback sheet in that case.
   if(navigator.share){
-    try{await navigator.share({title:buildSettleSubject(gname),text});}catch(err){/* Share canceled (AbortError), etc. — ignored */}
-  }else{
-    // Copies the share text to the clipboard where navigator.share isn't supported
-    const ok=await copyTextToClipboard(text);
-    if(ok)toast('Settlement result copied');else toast('Could not copy','error');
+    try{await navigator.share({title:buildSettleSubject(gname),text});return;}
+    catch(err){if(err&&err.name==='AbortError')return;}
   }
+  openShareSheet({
+    title:'Share settlement',
+    whatsappText:text,
+    mailto:buildSettleMailto(gname,text),
+    copyText:text,
+    copiedToast:'Settlement result copied'
+  });
 });
-// Send by email: uses mailto: so the subject is reliably set (navigator.share's title isn't always reflected in the email subject)
+// WhatsApp fallback: the official generic wa.me link, prefilled with the share text (no fixed phone number)
+document.getElementById('share-whatsapp').addEventListener('click',()=>{
+  closeShareSheet();
+  if(!pendingShare)return;
+  window.open(buildWhatsAppShareUrl(pendingShare.whatsappText),'_blank','noopener');
+});
+// Email fallback: mailto: so the subject is reliably set
 document.getElementById('share-mail').addEventListener('click',()=>{
   closeShareSheet();
-  const gname=document.getElementById('g-title').textContent;
-  location.href=buildSettleMailto(gname,currentSettleShareText());
+  if(!pendingShare)return;
+  location.href=pendingShare.mailto;
 });
-// Copy result: same share text as email/LINE, copied to the clipboard
 document.getElementById('share-copy').addEventListener('click',async()=>{
   closeShareSheet();
-  const ok=await copyTextToClipboard(currentSettleShareText());
-  if(ok)toast('Settlement result copied');else toast('Could not copy','error');
+  if(!pendingShare)return;
+  const ok=await copyTextToClipboard(pendingShare.copyText);
+  if(ok)toast(pendingShare.copiedToast);else toast('Could not copy','error');
 });
 document.getElementById('share-cancel').addEventListener('click',closeShareSheet);
 document.getElementById('share-bg').addEventListener('click',e=>{if(e.target.id==='share-bg')closeShareSheet();});
