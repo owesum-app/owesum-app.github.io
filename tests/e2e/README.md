@@ -139,6 +139,26 @@ node tests/e2e/owesum_en_native_share_e2e.js
 * WhatsApp（wa.me）への実際のナビゲーションは発生させません（`window.open`を横取りしてURL文字列のみ検証し、ルートも二重に遮断します）。
 * `location.href`の傍受が効かないChromium環境では、mailtoボタンの実クリック検証を`buildSettleMailto`の純関数検証にフォールバックします（`owesum_field_usability_e2e.js`と同方式）。
 
+## owesum_language_flags_e2e.js
+
+日本語版(`/ja/`)・英語版(`/en/`)のトップ画面最上部にある言語切替表示に、国旗絵文字（日本語=🇯🇵、
+English=🇬🇧）が正しく表示されることを検証するテストです。
+
+米国旗🇺🇸が使われていないこと、PC幅(1280px)・スマホ幅(375/390/430px)のいずれでも言語切替表示が
+1行に収まること（`#btn-hero-create`はPC幅で意図的に非表示になる既存仕様のため、この確認は
+常に表示される`.lang-switch-link`を待機対象にしています）、現在選択中の言語が
+`aria-current="page"`付きの非リンクで示され、もう一方は既存の`.lang-switch-link`（リンク）の
+ままであること、リンクをクリックすると実際に`/ja/`⇔`/en/`へ遷移しクエリ・ハッシュを維持する
+（既存`syncLangSwitch`仕様は無改変）ことを確認します。
+
+実行コマンド：
+
+```
+node tests/e2e/owesum_language_flags_e2e.js
+```
+
+* 本番Supabaseへは接続しません（全ルート横取り・本番書込み0件）。Googleへの実送信もありません。
+
 ## e2e_narika.js / e2e_split.js
 
 OweSum全体の既存回帰テストです。
