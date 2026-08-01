@@ -214,6 +214,18 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .intro-media{width:100%;margin:0;padding:0;line-height:0;overflow:hidden}
 .intro-img{display:block;width:100%;height:auto;object-fit:cover;object-position:top center;aspect-ratio:941/1500}
 @media (min-width:768px){.intro-media{max-width:480px;margin:0 auto}}
+/* How OweSum Works: shown in natural HTML order right after the joined-groups list (no JS moving). Phones get 1 column; 768px and up keeps the hero panel width with 2 columns x 4 rows */
+.manga-section{width:100%;box-sizing:border-box;padding:0 16px;margin:16px 0 4px}
+.manga-heading{font-size:14px;font-weight:800;color:#1e3a5f;margin:0 0 4px;text-align:center}
+.manga-lead{font-size:11.5px;line-height:1.6;color:#64748b;margin:0 0 10px;text-align:center;font-weight:500}
+.manga-grid{display:grid;grid-template-columns:1fr;gap:12px;max-width:420px;margin:0 auto}
+.manga-img{display:block;width:100%;height:auto;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+@media (min-width:768px){
+  .manga-section{padding:0;margin:14px 0 0}
+  .manga-heading{font-size:13px;margin:0 0 3px;text-align:left}
+  .manga-lead{font-size:10.5px;margin:0 0 8px;text-align:left}
+  .manga-grid{grid-template-columns:repeat(2,1fr);gap:8px;max-width:none;margin:0}
+}
 /* スマホのトップ：画像を上に置き、その下に「新しいグループを作る」主ボタン→参加中のグループ一覧→（下部に）復元リンク、の縦積み */
 @media (max-width:767px){
   #p-group .wrap{padding-top:6px}
@@ -306,12 +318,27 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <p class="hero-brand"><span class="hero-logo">OweSum</span><span class="hero-kana">See the world in 48 hours</span></p>
       <p class="hero-desc">No sign-up required, ready in seconds.<br>Split unevenly if you need to.<br>Works for trips abroad, too.</p>
       <button type="button" class="hero-btn" id="btn-hero-create">Create a new group</button>
-      <div id="my-groups"></div>
+      <!-- On desktop #btn-hero-create is hidden, so this long-standing inline form is the real CTA. It sits before #my-groups so the "Create a new group" path stays above the joined-groups list -->
       <div class="card sp-hide">
         <label>Create a new group</label>
         <input type="text" id="gname" placeholder="e.g. Welcome party" style="margin-bottom:10px">
         <button type="button" class="btn" id="btn-create-group">Create group</button>
       </div>
+      <div id="my-groups"></div>
+      <section id="manga-section-en" class="manga-section" aria-labelledby="manga-heading">
+        <h2 id="manga-heading" class="manga-heading">How OweSum Works</h2>
+        <p class="manga-lead">See how OweSum makes group expenses easy.</p>
+        <div class="manga-grid">
+          <img src="/assets/images/manga/en/owesum-manga-en-01.png" width="1122" height="1402" alt="Six friends having dinner at an Italian restaurant" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/en/owesum-manga-en-02.png" width="1122" height="1402" alt="John paying for the first dinner" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/en/owesum-manga-en-03.png" width="1122" height="1402" alt="Three friends heading home while three continue to a wine bar" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/en/owesum-manga-en-04.png" width="1122" height="1402" alt="Three friends at a wine bar with one person paying" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/en/owesum-manga-en-05.png" width="1122" height="1402" alt="Six friends struggling to work out who owes what" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/en/owesum-manga-en-06.png" width="1122" height="1402" alt="Entering an expense into OweSum" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/en/owesum-manga-en-07.png" width="1122" height="1402" alt="OweSum showing exactly who should pay whom" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/en/owesum-manga-en-08.png" width="1122" height="1402" alt="Recording expenses with OweSum during a group trip" loading="lazy" decoding="async" class="manga-img">
+        </div>
+      </section>
       <!-- Restore link, kept understated (reuses the existing #restore-file input and restore flow). CSS switches it to display:block on phones; on desktop it stays inside hero-inner -->
       <div id="restore-sp-wrap">
         <button type="button" class="restore-link" id="btn-restore-sp"><i class="ti ti-file-import" style="font-size:15px"></i>Restore from a backup file</button>

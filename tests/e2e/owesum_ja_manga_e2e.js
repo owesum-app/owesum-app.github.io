@@ -2,7 +2,7 @@
 //
 // 目的：日本語版(/ja/)トップに追加した8枚のマンガ画像セクションが、01〜08の順序で正しく揃い、
 // 画像404・console errorを出さず、スマホは1列・PC(768px以上)は2列で表示され、スマホ390px幅で
-// 横スクロールが発生せず、画像がトリミングされていないこと、英語版(/en/)には一切影響がないこと、
+// 横スクロールが発生せず、画像がトリミングされていないこと、英語版(/en/)へ日本語漫画が混入しないこと、
 // 既存の主要ボタン（新しいグループを作る）が従来どおり操作できることを検証する。
 //
 // 本番Supabase・Googleへの通信はすべてルート横取りで遮断する（owesum_en_locale_e2e.jsと同方式）。
@@ -228,14 +228,17 @@ function orderIsCorrect(t) {
     await ctx.close();
   }
 
-  // ---------- C. 英語版(/en/)には漫画セクションが一切存在しない ----------
+  // ---------- C. 英語版(/en/)に日本語漫画が混入していない ----------
+  // 英語版には英語漫画(/assets/images/manga/en/)が別途追加されたため、ここで固定するのは
+  // 「日本語漫画(#manga-section-ja・/manga/ja/)が英語版へ混入しないこと」。英語漫画そのものの
+  // 検証はowesum_en_manga_e2e.jsが受け持つ。
   {
     const { ctx, page, notFound } = await newCtx(browser, { width: 1280, height: 1000 });
     await page.goto(BASE_EN, { waitUntil: 'networkidle' });
     await page.waitForSelector('.lang-switch-link', { timeout: 15000 });
-    const hasManga = await page.evaluate(() => !!document.getElementById('manga-section-ja') || !!document.querySelector('.manga-section') || document.body.innerHTML.includes('/assets/images/manga/'));
-    ok('[C] 英語版: マンガセクションが存在しない', hasManga === false, String(hasManga));
-    ok('[C] 英語版: マンガ画像への404が0件（そもそも参照がない）', notFound.filter(u => u.includes('/manga/')).length === 0, JSON.stringify(notFound));
+    const hasJaManga = await page.evaluate(() => !!document.getElementById('manga-section-ja') || document.body.innerHTML.includes('/assets/images/manga/ja/'));
+    ok('[C] 英語版: 日本語漫画セクション・日本語漫画画像が存在しない', hasJaManga === false, String(hasJaManga));
+    ok('[C] 英語版: マンガ画像への404が0件', notFound.filter(u => u.includes('/manga/')).length === 0, JSON.stringify(notFound));
     const errs = await jsErrors(page);
     ok('[C] 英語版: console errorが0件', errs.length === 0, JSON.stringify(errs));
     await ctx.close();
