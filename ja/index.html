@@ -148,6 +148,42 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .logo p{font-size:13px;color:#888;margin-top:6px}
 .g-item{display:flex;align-items:center;justify-content:space-between;padding:13px 14px;background:#fff;border-radius:10px;margin-bottom:8px;cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 .g-item:active{background:#f0f7ff}
+/* 参加中グループの行操作（この端末の一覧表示だけを切り替える。グループ本体・Supabaseのデータは一切変更しない）。
+   スマホは行を左へスワイプして右から「非表示」ボタンを出す。PCは行右端の「︙」からメニューを開く。 */
+.g-row{position:relative;margin-bottom:8px;border-radius:10px}
+/* user-selectなし：スワイプ中に行の文字がドラッグ選択され、ブラウザがpointercancelを出すのを防ぐ */
+.g-row .g-item{position:relative;z-index:1;margin-bottom:0;touch-action:pan-y;user-select:none;-webkit-user-select:none;transition:transform .18s ease}
+.g-row.g-swiping .g-item{transition:none}
+.g-row.g-open .g-item{transform:translateX(-88px)}
+.g-hide-btn{position:absolute;top:0;right:0;height:100%;width:88px;border:none;background:#64748b;color:#fff;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;align-items:center;justify-content:center;border-radius:0 10px 10px 0;display:none}
+.g-hide-btn:active{background:#475569}
+.g-kebab{flex-shrink:0;background:none;border:none;color:#cbd5e1;font-size:17px;line-height:1;padding:4px 6px;margin-right:2px;border-radius:6px;cursor:pointer;font-family:inherit;display:none;align-items:center;justify-content:center}
+.g-kebab:hover{color:#64748b;background:#f1f5f9}
+.g-kebab:focus-visible{outline:2px solid #2563eb;outline-offset:1px;color:#64748b}
+@media (max-width:767px){.g-row{overflow:hidden}.g-hide-btn{display:flex}}
+@media (min-width:768px){.g-kebab{display:flex}}
+.g-menu{position:fixed;z-index:10010;background:#fff;border:1px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 20px rgba(31,41,55,.16);padding:4px;min-width:170px}
+.g-menu-item{display:block;width:100%;text-align:left;background:none;border:none;font-family:inherit;font-size:13px;color:#1a1a1a;padding:9px 12px;border-radius:7px;cursor:pointer;white-space:nowrap}
+.g-menu-item:hover{background:#f1f5f9}
+.g-menu-item:focus-visible{background:#f1f5f9;outline:2px solid #2563eb;outline-offset:-2px}
+/* 非表示にしたグループの折りたたみ一覧 */
+.hg-wrap{margin-top:10px}
+.hg-summary{cursor:pointer;list-style:none;font-size:12px;color:#64748b;padding:6px 2px;text-decoration:underline;text-underline-offset:3px}
+.hg-summary::-webkit-details-marker{display:none}
+.hg-summary:focus-visible{outline:2px solid #2563eb;outline-offset:2px;border-radius:4px}
+.hg-list{margin-top:6px;display:flex;flex-direction:column;gap:6px}
+.hg-item{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 10px}
+.hg-name{flex:1;min-width:0;background:none;border:none;font-family:inherit;font-size:13px;font-weight:600;color:#1a1a1a;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 0}
+.hg-restore{flex-shrink:0;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;padding:5px 10px;cursor:pointer;white-space:nowrap}
+.hg-restore:active{background:#dbeafe}
+/* 元に戻せるトースト（#toast-wrapはpointer-events:noneのため、この行だけ操作可能にする） */
+.toast-undo{display:flex;align-items:center;gap:14px;pointer-events:auto}
+.toast-undo-btn{background:none;border:none;color:#93c5fd;font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;padding:2px 4px;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+.toast-undo-btn:focus-visible{outline:2px solid #93c5fd;outline-offset:2px}
+/* 非表示中のグループを直接開いたときの案内 */
+#hidden-notice{display:none;align-items:center;gap:10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:8px 12px;margin-bottom:10px;font-size:12px;color:#64748b;line-height:1.5}
+#hidden-notice.show{display:flex}
+#hidden-notice button{flex-shrink:0;background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;border-radius:8px;font-family:inherit;font-size:12px;font-weight:700;padding:5px 10px;cursor:pointer;white-space:nowrap}
 .ptitle{font-size:20px;font-weight:700;margin-bottom:14px}
 /* トップ下部の控えめな「バックアップから復元」テキストリンク（スマホ主対象） */
 #restore-sp-wrap{display:none;text-align:center;padding:18px 0 6px}
@@ -420,6 +456,12 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <span aria-current="page" style="color:#1a1a1a;font-weight:700"><span aria-hidden="true" style="font-size:0.9em">🇯🇵</span> 日本語</span>
       <span aria-hidden="true" style="color:#cbd5e1;margin:0 6px">|</span>
       <a href="/en/" class="lang-switch-link" style="color:#64748b;text-decoration:underline;text-underline-offset:3px"><span aria-hidden="true" style="font-size:0.9em">🇬🇧</span> English</a>
+    </div>
+
+    <!-- 非表示中のグループを直接開いたときの案内。トップの一覧表示だけの設定であることを示す（データは一切変更しない） -->
+    <div id="hidden-notice" role="status">
+      <span style="flex:1;min-width:0">このグループは参加中の一覧で非表示になっています</span>
+      <button type="button" id="btn-hidden-notice-show">再表示</button>
     </div>
 
     <!-- メンバー -->
@@ -1248,6 +1290,268 @@ document.querySelectorAll('.rb').forEach(btn=>{
   });
 });
 
+// ===== 参加中グループの「非表示」 =====
+// この端末・このブラウザのトップ一覧の見え方だけを切り替える機能。
+// グループ本体・メンバー・支払い・為替・精算結果・共有URL・グループID、そして参加中グループID
+// （narika_gids）は一切変更しない。非表示IDだけを別キーに保存し、表示時に除外する。
+// 保存値が壊れていても（不正JSON・配列でない等）一覧全体をエラーにせず、従来どおり全件表示に戻す。
+const HIDDEN_GIDS_KEY='owesum_hidden_gids_ja'; // 英語版は別キー。日英の非表示状態は分離する
+function readHiddenGids(){
+  try{
+    const raw=localStorage.getItem(HIDDEN_GIDS_KEY);
+    if(!raw)return [];
+    const a=JSON.parse(raw);
+    if(!Array.isArray(a))return [];
+    return a.filter(v=>typeof v==='string'||typeof v==='number').map(String);
+  }catch(e){return [];}
+}
+function writeHiddenGids(list){
+  try{localStorage.setItem(HIDDEN_GIDS_KEY,JSON.stringify(Array.from(new Set(list.map(String)))));}catch(e){}
+}
+function isGidHidden(id){return readHiddenGids().indexOf(String(id))>=0;}
+
+let lastGroupsData=null; // 直近に取得したグループ行。非表示・再表示はここから再描画し、Supabaseへ再通信しない
+let gOpenSwipeRow=null;  // 同時に開けるスワイプ行は1つだけ
+let gOpenMenu=null;      // 同時に開けるメニューは1つだけ
+
+function closeSwipeRow(){
+  if(!gOpenSwipeRow)return;
+  gOpenSwipeRow.classList.remove('g-open');
+  gOpenSwipeRow=null;
+}
+function closeGroupMenu(focusBack){
+  if(!gOpenMenu)return;
+  const btn=gOpenMenu.__btn;
+  if(gOpenMenu.parentNode)gOpenMenu.parentNode.removeChild(gOpenMenu);
+  gOpenMenu=null;
+  if(btn){btn.setAttribute('aria-expanded','false');if(focusBack)btn.focus();}
+}
+document.addEventListener('click',e=>{
+  if(gOpenMenu&&!e.target.closest('.g-menu')&&!e.target.closest('.g-kebab'))closeGroupMenu();
+  if(gOpenSwipeRow&&e.target.closest('.g-row')!==gOpenSwipeRow)closeSwipeRow();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'||e.key==='Esc'){
+    if(gOpenMenu)closeGroupMenu(true);
+    closeSwipeRow();
+  }
+});
+// 開いているメニューはスクロールに追従させる（要素を画面内へ送るだけのスクロールで勝手に閉じない）。
+// 縦スクロールでスワイプ行を閉じる処理は、実際の指の動きを見ているattachSwipe側で行う。
+function repositionGroupMenu(){
+  if(!gOpenMenu||!gOpenMenu.__btn)return;
+  const btn=gOpenMenu.__btn;
+  if(!btn.isConnected){closeGroupMenu();return;}
+  const r=btn.getBoundingClientRect();
+  const mw=gOpenMenu.offsetWidth,mh=gOpenMenu.offsetHeight;
+  let left=Math.min(r.right-mw,window.innerWidth-mw-8);
+  if(left<8)left=8;
+  let top=r.bottom+6;
+  if(top+mh>window.innerHeight-8)top=Math.max(8,r.top-mh-6);
+  gOpenMenu.style.left=left+'px';
+  gOpenMenu.style.top=top+'px';
+}
+window.addEventListener('scroll',repositionGroupMenu,true);
+window.addEventListener('resize',()=>{closeGroupMenu();closeSwipeRow();});
+
+// 元に戻せるトースト。数秒で自動的に消えるが、消えても「非表示にしたグループ」から再表示できる
+function toastUndo(msg,label,onUndo){
+  const wrap=document.getElementById('toast-wrap');
+  if(!wrap)return;
+  const el=document.createElement('div');
+  el.className='toast toast-undo';
+  const span=document.createElement('span');
+  span.textContent=msg;
+  const btn=document.createElement('button');
+  btn.type='button';btn.className='toast-undo-btn';btn.textContent=label;
+  let done=false;
+  const close=()=>{
+    if(done)return;
+    done=true;
+    el.classList.remove('show');
+    setTimeout(()=>{if(el.parentNode)el.parentNode.removeChild(el);},300);
+  };
+  btn.addEventListener('click',()=>{close();try{onUndo();}catch(err){}});
+  el.appendChild(span);el.appendChild(btn);
+  wrap.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(close,5000);
+}
+
+function hideGroupFromList(id,name){
+  const a=readHiddenGids();
+  if(a.indexOf(String(id))<0)a.push(String(id));
+  writeHiddenGids(a);
+  closeSwipeRow();closeGroupMenu();
+  renderGroups();
+  toastUndo('非表示にしました','元に戻す',()=>{showGroupInList(id);});
+}
+function showGroupInList(id){
+  writeHiddenGids(readHiddenGids().filter(x=>x!==String(id)));
+  renderGroups();
+  syncHiddenNotice();
+}
+
+// 非表示中のグループを直接開いているときだけ案内を出す（アクセスは従来どおり拒否しない）
+function syncHiddenNotice(){
+  const el=document.getElementById('hidden-notice');
+  if(!el)return;
+  el.classList.toggle('show',!!(GID&&isGidHidden(GID)));
+}
+
+function groupRowHtml(g){
+  const name=g.name||'名称未設定';
+  const created=g.created_at?new Date(g.created_at).toLocaleDateString('ja-JP'):'';
+  return `<div class="g-row" data-id="${esc(g.id)}" data-name="${esc(name)}">
+    <button type="button" class="g-hide-btn" data-act="hide" tabindex="-1" aria-label="${esc(name)}を一覧から非表示にする">非表示</button>
+    <div class="g-item" data-id="${esc(g.id)}" data-name="${esc(name)}">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:15px;font-weight:600">${esc(name)}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px">${esc(created)}作成</div>
+      </div>
+      <button type="button" class="g-kebab" data-act="menu" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(name)}の操作メニュー">⋮</button>
+      <i class="ti ti-chevron-right" style="color:#ccc;font-size:20px"></i>
+    </div>
+  </div>`;
+}
+function hiddenSectionHtml(list){
+  if(!list.length)return ''; // 0件なら領域自体を出さない
+  return `<details class="hg-wrap" id="hidden-groups">
+    <summary class="hg-summary">非表示にしたグループ（${list.length}）</summary>
+    <div class="hg-list">`+list.map(g=>{
+      const name=g.name||'名称未設定';
+      return `<div class="hg-item" data-id="${esc(g.id)}" data-name="${esc(name)}">
+        <button type="button" class="hg-name" data-act="open">${esc(name)}</button>
+        <button type="button" class="hg-restore" data-act="restore" aria-label="${esc(name)}を再表示する">再表示</button>
+      </div>`;
+    }).join('')+`</div>
+  </details>`;
+}
+
+// 行を左へスワイプして右側の「非表示」ボタンを見せる。縦スクロールは妨げない。
+// 進行中のスワイプはモジュール単位で1つだけ持ち、移動・確定はwindow側で受ける。
+// こうすると指が行の外へ出て離されても必ず確定し、行を作り直してもリスナーが増えない。
+let swipeState=null;
+function attachSwipe(row,item){
+  item.addEventListener('pointerdown',e=>{
+    if(!window.matchMedia('(max-width:767px)').matches)return; // スワイプはスマホ幅のみ
+    if(e.pointerType==='mouse'&&e.button!==0)return;
+    if(gOpenSwipeRow&&gOpenSwipeRow!==row)closeSwipeRow();
+    swipeState={row:row,item:item,startX:e.clientX,startY:e.clientY,dir:null,baseOpen:row.classList.contains('g-open'),dx:0};
+  });
+}
+window.addEventListener('pointermove',e=>{
+  const s=swipeState;
+  if(!s)return;
+  const mx=e.clientX-s.startX,my=e.clientY-s.startY;
+  if(s.dir===null){
+    // 縦方向が優勢なら縦スクロールとして扱い、スワイプ処理はしない（開いている行は閉じる）
+    if(Math.abs(my)>10&&Math.abs(my)>=Math.abs(mx)){swipeState=null;closeSwipeRow();return;}
+    // 横方向がしきい値を超えたときだけスワイプ開始（少し横へ触れただけでは動かない）
+    if(Math.abs(mx)>12&&Math.abs(mx)>Math.abs(my)){s.dir='h';s.row.classList.add('g-swiping');closeGroupMenu();}
+    else return;
+  }
+  s.dx=Math.max(-88,Math.min(0,(s.baseOpen?-88:0)+mx));
+  s.item.style.transform='translateX('+s.dx+'px)';
+});
+window.addEventListener('pointerup',()=>{
+  const s=swipeState;
+  if(!s)return;
+  swipeState=null;
+  if(s.dir!=='h')return;
+  s.row.classList.remove('g-swiping');
+  s.item.style.transform='';
+  if(s.dx<=-44){s.row.classList.add('g-open');gOpenSwipeRow=s.row;}
+  else{s.row.classList.remove('g-open');if(gOpenSwipeRow===s.row)gOpenSwipeRow=null;}
+  // スワイプ直後のクリックでグループを開かない（スワイプだけでは非表示にもしない）
+  s.row.__suppressClick=true;
+  setTimeout(()=>{s.row.__suppressClick=false;},400);
+});
+window.addEventListener('pointercancel',()=>{
+  const s=swipeState;
+  if(!s)return;
+  swipeState=null;
+  s.row.classList.remove('g-swiping');
+  s.item.style.transform='';
+});
+
+function openGroupMenu(btn,id,name){
+  const menu=document.createElement('div');
+  menu.className='g-menu';
+  menu.setAttribute('role','menu');
+  menu.setAttribute('aria-label',name+'の操作メニュー');
+  const mi=document.createElement('button');
+  mi.type='button';mi.className='g-menu-item';mi.setAttribute('role','menuitem');
+  mi.textContent='一覧から非表示';
+  mi.addEventListener('click',e=>{e.stopPropagation();closeGroupMenu();hideGroupFromList(id,name);});
+  menu.appendChild(mi);
+  menu.__btn=btn;
+  // #my-groupsはPCで内部スクロールするため、メニューはbody直下にfixedで出して隠れないようにする
+  document.body.appendChild(menu);
+  btn.setAttribute('aria-expanded','true');
+  gOpenMenu=menu;
+  repositionGroupMenu();
+  menu.addEventListener('keydown',e=>{
+    if(e.key==='Escape'||e.key==='Esc'){e.stopPropagation();closeGroupMenu(true);}
+  });
+}
+
+function bindGroupRows(wrap){
+  wrap.querySelectorAll('.g-row').forEach(row=>{
+    const item=row.querySelector('.g-item');
+    const kebab=row.querySelector('.g-kebab');
+    const hideBtn=row.querySelector('.g-hide-btn');
+    const id=row.dataset.id,name=row.dataset.name;
+    hideBtn.addEventListener('click',e=>{e.stopPropagation();hideGroupFromList(id,name);});
+    kebab.addEventListener('click',e=>{
+      e.stopPropagation();
+      const wasOpen=!!(gOpenMenu&&gOpenMenu.__btn===kebab);
+      closeGroupMenu();closeSwipeRow();
+      if(!wasOpen)openGroupMenu(kebab,id,name);
+    });
+    kebab.addEventListener('keydown',e=>{
+      if(e.key==='ArrowDown'){
+        e.preventDefault();e.stopPropagation();
+        if(!(gOpenMenu&&gOpenMenu.__btn===kebab)){closeGroupMenu();openGroupMenu(kebab,id,name);}
+        const f=gOpenMenu&&gOpenMenu.querySelector('.g-menu-item');
+        if(f)f.focus();
+      }
+    });
+    item.addEventListener('click',e=>{
+      if(e.target.closest('.g-kebab'))return;
+      if(row.__suppressClick){row.__suppressClick=false;return;}
+      if(row.classList.contains('g-open')){closeSwipeRow();return;}
+      enterGroup(id,name);
+    });
+    attachSwipe(row,item);
+  });
+  wrap.querySelectorAll('.hg-item').forEach(it=>{
+    const id=it.dataset.id,name=it.dataset.name;
+    it.querySelector('.hg-name').addEventListener('click',()=>enterGroup(id,name));
+    it.querySelector('.hg-restore').addEventListener('click',()=>{showGroupInList(id);toast('再表示しました','info');});
+  });
+}
+
+// 取得済みデータからの再描画のみ。非表示・再表示でSupabaseへは一切通信しない
+function renderGroups(){
+  const wrap=document.getElementById('my-groups');
+  if(!wrap||!lastGroupsData)return;
+  closeGroupMenu();
+  gOpenSwipeRow=null;
+  const det0=document.getElementById('hidden-groups');
+  const wasOpen=!!(det0&&det0.open);
+  const hidden=readHiddenGids();
+  const vis=lastGroupsData.filter(g=>hidden.indexOf(String(g.id))<0);
+  const hid=lastGroupsData.filter(g=>hidden.indexOf(String(g.id))>=0);
+  wrap.innerHTML='<div class="sec">参加中のグループ</div>'
+    +(vis.length?vis.map(groupRowHtml).join('')
+      :'<div class="card" style="color:#999;font-size:13px">参加中のグループはありません</div>')
+    +hiddenSectionHtml(hid);
+  const det=document.getElementById('hidden-groups');
+  if(det&&wasOpen)det.open=true;
+  bindGroupRows(wrap);
+}
+
 // ===== グループ =====
 async function loadGroups(){
   const wrap=document.getElementById('my-groups');
@@ -1271,19 +1575,8 @@ async function loadGroups(){
       return;
     }
     data.forEach(g=>{groupNames[String(g.id)]=g.name||'名称未設定';groupBase[String(g.id)]=normalizeGroupBase(g.base_currency);});
-    wrap.innerHTML='<div class="sec">参加中のグループ</div>'+data.map(g=>{
-      const created=g.created_at?new Date(g.created_at).toLocaleDateString('ja-JP'):'';
-      return `<div class="g-item" data-id="${esc(g.id)}" data-name="${esc(g.name||'名称未設定')}">
-        <div style="flex:1">
-          <div style="font-size:15px;font-weight:600">${esc(g.name||'名称未設定')}</div>
-          <div style="font-size:11px;color:#aaa;margin-top:2px">${esc(created)}作成</div>
-        </div>
-        <i class="ti ti-chevron-right" style="color:#ccc;font-size:20px"></i>
-      </div>`;
-    }).join('');
-    wrap.querySelectorAll('[data-id]').forEach(el=>{
-      el.addEventListener('click',()=>enterGroup(el.dataset.id,el.dataset.name));
-    });
+    lastGroupsData=data;
+    renderGroups();
   }catch(err){
     debugLog('loadGroups例外',{message:err.message,stack:err.stack});
     wrap.innerHTML='<div class="sec">参加中のグループ</div><div class="card" style="color:#dc2626;font-size:13px;line-height:1.6">JavaScriptエラーで一覧を表示できません<br>'+esc(err.message||String(err))+'</div>';
@@ -1469,6 +1762,7 @@ async function enterGroup(id,name,urlMode){
     }
   }catch(e){}
   setUrlForGroup(id,urlMode||'push');
+  syncHiddenNotice(); // 非表示中でもグループは従来どおり開ける。案内を出すだけ
   document.getElementById('g-title').textContent=name;
   const linkEl=document.getElementById('group-link-url');
   if(linkEl)linkEl.textContent=buildInviteUrl(id);
@@ -1496,9 +1790,16 @@ function showGroupList(urlMode){
   setUrlForList(urlMode||'push');
   showPage('p-group');
   window.scrollTo(0,0);
+  syncHiddenNotice();
   loadGroups();
 }
 document.getElementById('btn-back').addEventListener('click',()=>showGroupList('push'));
+// 非表示中のグループ画面から、その場で一覧へ戻す
+document.getElementById('btn-hidden-notice-show').addEventListener('click',()=>{
+  if(!GID)return;
+  showGroupInList(GID);
+  toast('再表示しました','info');
+});
 
 // ブラウザの戻る／進むと画面を同期する
 window.addEventListener('popstate',async()=>{
