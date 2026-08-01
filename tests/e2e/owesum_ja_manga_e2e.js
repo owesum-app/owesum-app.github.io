@@ -116,10 +116,31 @@ async function mangaInfo(page) {
     const heading = document.getElementById('manga-heading');
     const imgs = Array.from(manga.querySelectorAll('img.manga-img'));
     const grid = manga.querySelector('.manga-grid');
-    const myGroups = document.getElementById('my-groups');
-    const wrapDiv = document.querySelector('#p-group > div.wrap');
-    // 「参加中グループ一覧より前」の判定：DOM上でmangaがmyGroupsより先行しているか
-    const posVsGroups = myGroups ? (manga.compareDocumentPosition(myGroups) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0 : null;
+    // 表示順の判定：実際に画面上で見える要素だけを対象に、上から並んだ縦位置(top)を取得する。
+    // モバイルではhero-btn(モーダル起動用)が主CTA、PCでは#gnameのインライン作成フォームが主CTAとして見える
+    // （どちらか一方は常にdisplay:noneで非表示）。
+    function visibleTop(id) {
+      const el = document.getElementById(id);
+      if (!el) return null;
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none') return null;
+      let n = el;
+      while (n) {
+        if (n instanceof Element && getComputedStyle(n).display === 'none') return null;
+        n = n.parentElement;
+      }
+      const r = el.getBoundingClientRect();
+      return Math.round(r.top + window.scrollY);
+    }
+    const ctaTop = visibleTop('btn-hero-create') !== null ? visibleTop('btn-hero-create') : visibleTop('gname');
+    const orderTops = {
+      cta: ctaTop,
+      myGroups: visibleTop('my-groups'),
+      manga: visibleTop('manga-section-ja'),
+      restore: visibleTop('restore-sp-wrap'),
+      analytics: visibleTop('analytics-note'),
+    };
+
     return {
       headingText: heading ? heading.textContent : null,
       count: imgs.length,
@@ -127,12 +148,16 @@ async function mangaInfo(page) {
       naturalSizes: imgs.map(i => [i.naturalWidth, i.naturalHeight]),
       rects: imgs.map(i => { const r = i.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }),
       gridColumnsCount: grid ? getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length : null,
-      mangaBeforeMyGroups: posVsGroups,
-      mangaNextSiblingIsWrap: manga.nextElementSibling === wrapDiv,
+      orderTops,
       bodyScrollWidth: document.documentElement.scrollWidth,
       innerWidth: window.innerWidth,
     };
   });
+}
+
+function orderIsCorrect(t) {
+  return t.cta !== null && t.myGroups !== null && t.manga !== null && t.restore !== null && t.analytics !== null &&
+    t.cta < t.myGroups && t.myGroups < t.manga && t.manga < t.restore && t.restore < t.analytics;
 }
 
 (async () => {
@@ -161,7 +186,7 @@ async function mangaInfo(page) {
     ok('[A] スマホ: 画像404が0件', notFound.filter(u => u.includes('/manga/')).length === 0, JSON.stringify(notFound));
     ok('[A] スマホ: 1列表示（grid-template-columnsが1値）', info.gridColumnsCount === 1, String(info.gridColumnsCount));
     ok('[A] スマホ390px: 横スクロールが発生しない', info.bodyScrollWidth <= info.innerWidth, `scrollWidth=${info.bodyScrollWidth} innerWidth=${info.innerWidth}`);
-    ok('[A] スマホ: マンガが参加中グループ一覧より前にある', info.mangaBeforeMyGroups === true, String(info.mangaBeforeMyGroups));
+    ok('[A] スマホ: 表示順が「新しいグループを作る→参加中グループ→マンガ→バックアップ復元→アクセス解析」の順', orderIsCorrect(info.orderTops), JSON.stringify(info.orderTops));
     ok('[A] スマホ: 画像がトリミングされていない（レンダー比率が自然比率に一致）', info.rects.every((r, i) => {
       const nat = info.naturalSizes[i];
       const natRatio = nat[0] / nat[1];
@@ -196,7 +221,7 @@ async function mangaInfo(page) {
       const rendRatio = r[0] / r[1];
       return Math.abs(natRatio - rendRatio) / natRatio < 0.02;
     }), JSON.stringify({ rects: info.rects, naturalSizes: info.naturalSizes }));
-    ok('[B] PC: マンガがヒーロー直下（.wrapの直前）に移動している', info.mangaNextSiblingIsWrap === true, String(info.mangaNextSiblingIsWrap));
+    ok('[B] PC: 表示順が「新しいグループを作る→参加中グループ→マンガ→バックアップ復元→アクセス解析」の順', orderIsCorrect(info.orderTops), JSON.stringify(info.orderTops));
 
     const errs = await jsErrors(page);
     ok('[B] PC: console errorが0件', errs.length === 0, JSON.stringify(errs));
