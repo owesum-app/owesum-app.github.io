@@ -141,18 +141,52 @@ async function mangaInfo(page) {
       analytics: visibleTop('analytics-note'),
     };
 
+    const hero = document.querySelector('#p-group section.hero');
+    const heroInner = document.querySelector('#p-group .hero-inner');
+    const mangaRect = manga.getBoundingClientRect();
+    const heroRect = hero ? hero.getBoundingClientRect() : null;
+
     return {
+      // 配置：PCではヒーローの外（#p-group直下）、スマホではヒーローパネル内に留まる
+      insideHero: !!(hero && hero.contains(manga)),
+      insideHeroInner: !!(heroInner && heroInner.contains(manga)),
+      isDirectChildOfPage: manga.parentElement === document.getElementById('p-group'),
+      mangaTopAbs: Math.round(mangaRect.top + window.scrollY),
+      heroBottomAbs: heroRect ? Math.round(heroRect.bottom + window.scrollY) : null,
+      headingTopAbs: heading ? Math.round(heading.getBoundingClientRect().top + window.scrollY) : null,
+      sectionLeft: Math.round(mangaRect.left),
+      sectionRight: Math.round(mangaRect.right),
+      viewportHeight: window.innerHeight,
       headingText: heading ? heading.textContent : null,
       count: imgs.length,
       srcs: imgs.map(i => i.getAttribute('src')),
       naturalSizes: imgs.map(i => [i.naturalWidth, i.naturalHeight]),
       rects: imgs.map(i => { const r = i.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height)]; }),
+      imgTops: imgs.map(i => Math.round(i.getBoundingClientRect().top + window.scrollY)),
+      // 隣り合う画像の縦の余白（前の画像の下端 → 次の画像の上端）
+      imgGaps: imgs.slice(1).map((i, n) => Math.round(i.getBoundingClientRect().top - imgs[n].getBoundingClientRect().bottom)),
+      gridWidth: grid ? Math.round(grid.getBoundingClientRect().width) : null,
       gridColumnsCount: grid ? getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length : null,
       orderTops,
       bodyScrollWidth: document.documentElement.scrollWidth,
       innerWidth: window.innerWidth,
     };
   });
+}
+
+async function waitManga(page) {
+  await page.waitForSelector('#manga-section-ja', { timeout: 15000 });
+  // 画像はloading="lazy"のため、実利用と同じく下へスクロールして全8枚を読み込ませてから検証する
+  // （PCは1行1枚で縦に長く、初期ビューポートには数枚しか入らない）。
+  await page.evaluate(async () => {
+    const imgs = [...document.querySelectorAll('#manga-section-ja img.manga-img')];
+    for (const i of imgs) { i.scrollIntoView({ block: 'center' }); await new Promise(r => setTimeout(r, 70)); }
+    window.scrollTo(0, 0);
+  });
+  await page.waitForFunction(() => {
+    const imgs = document.querySelectorAll('#manga-section-ja img.manga-img');
+    return imgs.length === 8 && Array.from(imgs).every(i => i.complete && i.naturalWidth > 0);
+  }, { timeout: 20000 });
 }
 
 function orderIsCorrect(t) {
@@ -171,11 +205,7 @@ function orderIsCorrect(t) {
   {
     const { ctx, page, notFound } = await newCtx(browser, { width: 390, height: 3600 });
     await page.goto(BASE_JA, { waitUntil: 'networkidle' });
-    await page.waitForSelector('#manga-section-ja', { timeout: 15000 });
-    await page.waitForFunction(() => {
-      const imgs = document.querySelectorAll('#manga-section-ja img.manga-img');
-      return imgs.length === 8 && Array.from(imgs).every(i => i.complete && i.naturalWidth > 0);
-    }, { timeout: 15000 });
+    await waitManga(page);
     const info = await mangaInfo(page);
 
     ok('[A] スマホ: マンガ見出しが正しい', info.headingText === 'マンガでわかる OweSumの使い方', String(info.headingText));
@@ -193,39 +223,55 @@ function orderIsCorrect(t) {
       const rendRatio = r[0] / r[1];
       return Math.abs(natRatio - rendRatio) / natRatio < 0.02;
     }), JSON.stringify({ rects: info.rects, naturalSizes: info.naturalSizes }));
+    ok('[A] スマホ: マンガはヒーローパネル内に据え置かれたまま（PC用の移動が起きない）', info.insideHeroInner === true, JSON.stringify({ insideHero: info.insideHero, insideHeroInner: info.insideHeroInner }));
+    ok('[A] スマホ390px: 画像の描画幅が従来どおり326px', info.rects.every(r => r[0] === 326), JSON.stringify(info.rects));
 
     const errs = await jsErrors(page);
     ok('[A] スマホ: console errorが0件', errs.length === 0, JSON.stringify(errs));
     await ctx.close();
   }
 
-  // ---------- B. PC(1280px)：8枚・順序・自然寸法・404・2列・ヒーロー直下（.wrapの直前）に配置 ----------
+  // ---------- B. PC(1280px/1728px)：ヒーロー外の独立セクション・1行1枚の縦1列・大きく表示・初期画面に出ない ----------
   {
-    const { ctx, page, notFound } = await newCtx(browser, { width: 1280, height: 1000 });
-    await page.goto(BASE_JA, { waitUntil: 'networkidle' });
-    await page.waitForSelector('#manga-section-ja', { timeout: 15000 });
-    await page.waitForFunction(() => {
-      const imgs = document.querySelectorAll('#manga-section-ja img.manga-img');
-      return imgs.length === 8 && Array.from(imgs).every(i => i.complete && i.naturalWidth > 0);
-    }, { timeout: 15000 });
-    const info = await mangaInfo(page);
+    const EXPECTED_JA_SRCS = Array.from({ length: 8 }, (_, i) => `/assets/images/manga/ja/owesum-manga-ja-${String(i + 1).padStart(2, '0')}.png`);
+    for (const w of [1280, 1728]) {
+      const { ctx, page, notFound } = await newCtx(browser, { width: w, height: 1000 });
+      await page.goto(BASE_JA, { waitUntil: 'networkidle' });
+      await waitManga(page);
+      const info = await mangaInfo(page);
+      const T = `[B] PC${w}`;
 
-    ok('[B] PC: マンガ画像が8枚存在する', info.count === 8, String(info.count));
-    ok('[B] PC: 01〜08の順序が正しい', JSON.stringify(info.srcs) === JSON.stringify(Array.from({ length: 8 }, (_, i) => `/assets/images/manga/ja/owesum-manga-ja-${String(i + 1).padStart(2, '0')}.png`)), JSON.stringify(info.srcs));
-    ok('[B] PC: 8枚すべてnaturalWidth/Height>0', info.naturalSizes.every(s => s[0] > 0 && s[1] > 0), JSON.stringify(info.naturalSizes));
-    ok('[B] PC: 画像404が0件', notFound.filter(u => u.includes('/manga/')).length === 0, JSON.stringify(notFound));
-    ok('[B] PC: 2列表示（grid-template-columnsが2値）', info.gridColumnsCount === 2, String(info.gridColumnsCount));
-    ok('[B] PC: 画像がトリミングされていない（レンダー比率が自然比率に一致）', info.rects.every((r, i) => {
-      const nat = info.naturalSizes[i];
-      const natRatio = nat[0] / nat[1];
-      const rendRatio = r[0] / r[1];
-      return Math.abs(natRatio - rendRatio) / natRatio < 0.02;
-    }), JSON.stringify({ rects: info.rects, naturalSizes: info.naturalSizes }));
-    ok('[B] PC: 表示順が「新しいグループを作る→参加中グループ→マンガ→バックアップ復元→アクセス解析」の順', orderIsCorrect(info.orderTops), JSON.stringify(info.orderTops));
+      ok(`${T}: マンガ画像が8枚存在する`, info.count === 8, String(info.count));
+      ok(`${T}: 01〜08の順序が正しい`, JSON.stringify(info.srcs) === JSON.stringify(EXPECTED_JA_SRCS), JSON.stringify(info.srcs));
+      ok(`${T}: 8枚すべてnaturalWidth/Height>0`, info.naturalSizes.every(s => s[0] > 0 && s[1] > 0), JSON.stringify(info.naturalSizes));
+      ok(`${T}: 画像404が0件`, notFound.filter(u => u.includes('/manga/')).length === 0, JSON.stringify(notFound));
+      ok(`${T}: 1行1枚の縦1列表示（grid-template-columnsが1値）`, info.gridColumnsCount === 1, String(info.gridColumnsCount));
+      ok(`${T}: 上から01〜08の順に縦へ並ぶ`, info.imgTops.every((t, i) => i === 0 || t > info.imgTops[i - 1]), JSON.stringify(info.imgTops));
+      ok(`${T}: 各画像の間に縦方向の余白がある`, info.imgGaps.every(g => g >= 20), JSON.stringify(info.imgGaps));
+      ok(`${T}: 画像がトリミングされていない（レンダー比率が自然比率に一致）`, info.rects.every((r, i) => {
+        const nat = info.naturalSizes[i];
+        const natRatio = nat[0] / nat[1];
+        const rendRatio = r[0] / r[1];
+        return Math.abs(natRatio - rendRatio) / natRatio < 0.02;
+      }), JSON.stringify({ rects: info.rects, naturalSizes: info.naturalSizes }));
+      ok(`${T}: 表示順が「新しいグループを作る→参加中グループ→マンガ→バックアップ復元→アクセス解析」の順`, orderIsCorrect(info.orderTops), JSON.stringify(info.orderTops));
 
-    const errs = await jsErrors(page);
-    ok('[B] PC: console errorが0件', errs.length === 0, JSON.stringify(errs));
-    await ctx.close();
+      // 今回の修正点：トップ画面の左カラム（ヒーロー）から完全に外れ、中央で大きく表示されること
+      ok(`${T}: マンガがヒーローの外に出ている`, info.insideHero === false && info.insideHeroInner === false, JSON.stringify({ insideHero: info.insideHero, insideHeroInner: info.insideHeroInner }));
+      ok(`${T}: マンガが#p-group直下の独立セクションになっている`, info.isDirectChildOfPage === true, String(info.isDirectChildOfPage));
+      ok(`${T}: マンガがヒーロー（トップ部分）より下から始まる`, info.mangaTopAbs >= info.heroBottomAbs, JSON.stringify({ mangaTop: info.mangaTopAbs, heroBottom: info.heroBottomAbs }));
+      ok(`${T}: 初期表示（スクロール前）にマンガ画像が出ない`, info.mangaTopAbs >= info.viewportHeight, JSON.stringify({ mangaTop: info.mangaTopAbs, vh: info.viewportHeight }));
+      ok(`${T}: 見出しも初期画面には出ない`, info.headingTopAbs >= info.viewportHeight, JSON.stringify({ headingTop: info.headingTopAbs, vh: info.viewportHeight }));
+      ok(`${T}: 画像が十分大きい（描画幅700px以上）`, info.rects.every(r => r[0] >= 700), JSON.stringify(info.rects));
+      ok(`${T}: 画像の最大幅が800px以下（700〜800px目安）`, info.rects.every(r => r[0] <= 800), JSON.stringify(info.rects));
+      ok(`${T}: 画像がコンテナ幅からはみ出さない`, info.rects.every(r => r[0] <= info.gridWidth + 1), JSON.stringify({ rects: info.rects, gridWidth: info.gridWidth }));
+      ok(`${T}: 横スクロールが発生しない`, info.bodyScrollWidth <= info.innerWidth, `scrollWidth=${info.bodyScrollWidth} innerWidth=${info.innerWidth}`);
+      ok(`${T}: セクションがページ中央に配置されている（左右余白の差が2px以内）`, Math.abs(info.sectionLeft - (info.innerWidth - info.sectionRight)) <= 2, JSON.stringify({ left: info.sectionLeft, right: info.sectionRight, vw: info.innerWidth }));
+
+      const errs = await jsErrors(page);
+      ok(`${T}: console errorが0件`, errs.length === 0, JSON.stringify(errs));
+      await ctx.close();
+    }
   }
 
   // ---------- C. 英語版(/en/)に日本語漫画が混入していない ----------

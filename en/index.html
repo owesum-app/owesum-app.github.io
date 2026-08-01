@@ -214,17 +214,25 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .intro-media{width:100%;margin:0;padding:0;line-height:0;overflow:hidden}
 .intro-img{display:block;width:100%;height:auto;object-fit:cover;object-position:top center;aspect-ratio:941/1500}
 @media (min-width:768px){.intro-media{max-width:480px;margin:0 auto}}
-/* How OweSum Works: shown in natural HTML order right after the joined-groups list (no JS moving). Phones get 1 column; 768px and up keeps the hero panel width with 2 columns x 4 rows */
+/* How OweSum Works: phones keep it inside the hero panel right after the joined-groups list, 1 column (unchanged).
+   On desktop the hero panel is a fixed 100vh column with its own scrollbar, so placeMangaSection() lifts the manga,
+   restore link and analytics note out to #p-group level; the rules below style that standalone full-width section. */
 .manga-section{width:100%;box-sizing:border-box;padding:0 16px;margin:16px 0 4px}
 .manga-heading{font-size:14px;font-weight:800;color:#1e3a5f;margin:0 0 4px;text-align:center}
 .manga-lead{font-size:11.5px;line-height:1.6;color:#64748b;margin:0 0 10px;text-align:center;font-weight:500}
 .manga-grid{display:grid;grid-template-columns:1fr;gap:12px;max-width:420px;margin:0 auto}
 .manga-img{display:block;width:100%;height:auto;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
 @media (min-width:768px){
-  .manga-section{padding:0;margin:14px 0 0}
-  .manga-heading{font-size:13px;margin:0 0 3px;text-align:left}
-  .manga-lead{font-size:10.5px;margin:0 0 8px;text-align:left}
-  .manga-grid{grid-template-columns:repeat(2,1fr);gap:8px;max-width:none;margin:0}
+  /* ヒーロー外へ移動した後の独立セクション。ページ中央・1行1枚の縦1列で、漫画内の文字が読めるサイズまで大きく表示する */
+  #p-group>.manga-section{padding:64px 32px 8px;margin:0 auto;max-width:860px}
+  #p-group>.manga-section .manga-heading{font-size:28px;margin:0 0 8px;text-align:center}
+  #p-group>.manga-section .manga-lead{font-size:15px;margin:0 0 32px;text-align:center}
+  #p-group>.manga-section .manga-grid{grid-template-columns:1fr;gap:28px;max-width:760px;margin:0 auto}
+  #p-group>.manga-section .manga-img{border-radius:16px;box-shadow:0 4px 18px rgba(31,41,55,.10)}
+  /* 復元・アクセス解析は漫画セクションの後ろに中央寄せで置く */
+  #p-group>#restore-sp-wrap{display:block;max-width:none;text-align:center;padding:20px 32px 0;margin:0}
+  #p-group>#analytics-note{display:block;text-align:center;padding:0 32px 64px;margin:8px 0 0}
+  #p-group>#analytics-note .analytics-note-body{margin:6px auto 0;max-width:640px}
 }
 /* スマホのトップ：画像を上に置き、その下に「新しいグループを作る」主ボタン→参加中のグループ一覧→（下部に）復元リンク、の縦積み */
 @media (max-width:767px){
@@ -369,6 +377,43 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     </div>
   </div>
 </div>
+
+<script>
+// 「How OweSum Works」の配置。
+// スマホ(767px以下)：ヒーローパネル内の参加中グループ一覧の直後に据え置く（既存表示のまま・無変更）。
+// PC(768px以上)：ヒーローの左パネルは100vh固定・内部スクロールの狭い枠で、漫画を大きく見せられないため、
+//   漫画・復元リンク・アクセス解析をヒーロー直下（#p-group直下）へ移し、独立した横幅の広いセクションにする。
+// 要素はmoveであり複製しない（IDとイベントリスナーはそのまま維持される）。
+(function(){
+  function placeMangaSection(){
+    var manga=document.getElementById('manga-section-en');
+    var restore=document.getElementById('restore-sp-wrap');
+    var analytics=document.getElementById('analytics-note');
+    var myGroups=document.getElementById('my-groups');
+    var wrapDiv=document.querySelector('#p-group > div.wrap');
+    if(!manga||!restore||!analytics||!myGroups||!wrapDiv)return;
+    var pageRoot=wrapDiv.parentNode;
+    var isPC=window.matchMedia('(min-width:768px)').matches;
+    if(isPC){
+      if(manga.parentNode!==pageRoot){
+        pageRoot.insertBefore(manga,wrapDiv);
+        pageRoot.insertBefore(restore,wrapDiv);
+        pageRoot.insertBefore(analytics,wrapDiv);
+      }
+    }else{
+      if(manga.parentNode!==myGroups.parentNode){
+        myGroups.parentNode.insertBefore(manga,myGroups.nextSibling);
+        manga.parentNode.insertBefore(restore,manga.nextSibling);
+        restore.parentNode.insertBefore(analytics,restore.nextSibling);
+      }
+    }
+  }
+  placeMangaSection();
+  var mq=window.matchMedia('(min-width:768px)');
+  if(mq.addEventListener)mq.addEventListener('change',placeMangaSection);
+  else if(mq.addListener)mq.addListener(placeMangaSection);
+})();
+</script>
 
 <!-- Main app -->
 <div id="p-main" class="page">
