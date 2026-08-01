@@ -214,6 +214,16 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
 .intro-media{width:100%;margin:0;padding:0;line-height:0;overflow:hidden}
 .intro-img{display:block;width:100%;height:auto;object-fit:cover;object-position:top center;aspect-ratio:941/1500}
 @media (min-width:768px){.intro-media{max-width:480px;margin:0 auto}}
+/* マンガでわかる使い方：スマホは1列、PC(768px以上)はJSでヒーロー外（下部）へ移動し2列×4行で表示 */
+.manga-section{width:100%;box-sizing:border-box;padding:0 16px;margin:16px 0 4px}
+.manga-heading{font-size:14px;font-weight:800;color:#1e3a5f;margin:0 0 10px;text-align:center}
+.manga-grid{display:grid;grid-template-columns:1fr;gap:12px;max-width:520px;margin:0 auto}
+.manga-img{display:block;width:100%;height:auto;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+@media (min-width:768px){
+  .manga-section{padding:56px 32px;margin:0 auto;max-width:1100px}
+  .manga-heading{font-size:26px;margin-bottom:28px}
+  .manga-grid{grid-template-columns:repeat(2,1fr);gap:32px;max-width:1000px}
+}
 /* スマホのトップ：画像を上に置き、その下に「新しいグループを作る」主ボタン→参加中のグループ一覧→（下部に）復元リンク、の縦積み */
 @media (max-width:767px){
   #p-group .wrap{padding-top:6px}
@@ -306,6 +316,19 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
       <p class="hero-brand"><span class="hero-logo">OweSum</span><span class="hero-kana">オーサム</span></p>
       <p class="hero-desc">登録不要、すぐ使える！<br>傾斜精算も可能！<br>海外旅行にも使える！</p>
       <button type="button" class="hero-btn" id="btn-hero-create">新しいグループを作る</button>
+      <section id="manga-section-ja" class="manga-section" aria-labelledby="manga-heading">
+        <h2 id="manga-heading" class="manga-heading">マンガでわかる OweSumの使い方</h2>
+        <div class="manga-grid">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-01.png" width="1122" height="1402" alt="6人でイタリアンを楽しむ様子" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-02.png" width="1122" height="1402" alt="1次会の代金を1人が立て替える様子" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-03.png" width="1122" height="1402" alt="3人が帰宅し3人が2次会へ向かう様子" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-04.png" width="1122" height="1402" alt="3人でワインバーを楽しみ代金を立て替える様子" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-05.png" width="1122" height="1402" alt="翌朝6人が精算方法に困っている様子" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-06.png" width="1122" height="1402" alt="OweSumへ支払者・参加者・金額を入力する様子" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-07.png" width="1122" height="1402" alt="OweSumが精算結果を表示する様子" loading="lazy" decoding="async" class="manga-img">
+          <img src="/assets/images/manga/ja/owesum-manga-ja-08.png" width="1122" height="1402" alt="旅行中の立替をOweSumへ記録する様子" loading="lazy" decoding="async" class="manga-img">
+        </div>
+      </section>
       <div id="my-groups"></div>
       <div class="card sp-hide">
         <label>新しいグループを作る</label>
@@ -342,6 +365,36 @@ input:focus,select:focus{outline:2px solid #2563eb;border-color:#2563eb}
     </div>
   </div>
 </div>
+
+<script>
+// マンガ導線：スマホは「新しいグループを作る」直後・参加中グループ一覧の直前に据え置き。
+// PCはヒーロー内の狭い固定パネルに収まらないため、768px以上ではヒーロー直下（画像・主要ボタンの外）へJSで移動する。
+(function(){
+  function placeMangaSection(){
+    var manga=document.getElementById('manga-section-ja');
+    var myGroups=document.getElementById('my-groups');
+    var heroSection=document.querySelector('#p-group section.hero');
+    var wrapDiv=document.querySelector('#p-group > div.wrap');
+    if(!manga||!myGroups||!heroSection||!wrapDiv)return;
+    var isPC=window.matchMedia('(min-width:768px)').matches;
+    if(isPC){
+      if(manga.nextElementSibling!==wrapDiv||manga.parentNode!==wrapDiv.parentNode){
+        wrapDiv.parentNode.insertBefore(manga,wrapDiv);
+      }
+    }else{
+      if(manga.nextElementSibling!==myGroups||manga.parentNode!==myGroups.parentNode){
+        myGroups.parentNode.insertBefore(manga,myGroups);
+      }
+    }
+  }
+  placeMangaSection();
+  if(window.matchMedia){
+    var mq=window.matchMedia('(min-width:768px)');
+    if(mq.addEventListener)mq.addEventListener('change',placeMangaSection);
+    else if(mq.addListener)mq.addListener(placeMangaSection);
+  }
+})();
+</script>
 
 <!-- メインアプリ -->
 <div id="p-main" class="page">
